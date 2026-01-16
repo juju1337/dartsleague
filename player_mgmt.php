@@ -1,7 +1,7 @@
 <?php
 // player_mgmt.php - Player Management Interface
 
-$csv_file = 'players.csv';
+$csv_file = 'tables/players.csv';
 
 // Initialize CSV file if it doesn't exist
 if (!file_exists($csv_file)) {

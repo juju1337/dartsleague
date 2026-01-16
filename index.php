@@ -26,9 +26,9 @@ if (isset($_GET['logout'])) {
 $is_admin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
 
 // Load data
-$players_file = 'players.csv';
-$matchdays_file = 'matchdays.csv';
-$matches_file = 'matches.csv';
+$players_file = 'tables/players.csv';
+$matchdays_file = 'tables/matchdays.csv';
+$matches_file = 'tables/matches.csv';
 
 $players = loadPlayers();
 $matchdays = loadMatchdays();
@@ -181,9 +181,9 @@ function getPlayerName($player_id) {
         <!-- Admin Panel -->
         <div class="admin-panel">
             <h3>Management Area</h3>
-            <a href="mgmt/player_mgmt.php"><button>Player Management</button></a>
-            <a href="mgmt/matchday_setup.php"><button>Tournament Setup</button></a>
-            <a href="mgmt/matchday_mgmt.php"><button>Matchday Management</button></a>
+            <a href="player_mgmt.php"><button>Player Management</button></a>
+            <a href="matchday_setup.php"><button>Tournament Setup</button></a>
+            <a href="matchday_mgmt.php"><button>Matchday Management</button></a>
             <a href="index.php?logout=1"><button>Logout</button></a>
         </div>
     <?php else: ?>
@@ -207,7 +207,7 @@ function getPlayerName($player_id) {
             <div class="info">
                 <strong>No tournament created yet.</strong><br>
                 <?php if ($is_admin): ?>
-                    Please use the <a href="mgmt/matchday_setup.php">Tournament Setup</a> to create your tournament structure.
+                    Please use the <a href="matchday_setup.php">Tournament Setup</a> to create your tournament structure.
                 <?php else: ?>
                     The tournament has not been set up yet. Please check back later.
                 <?php endif; ?>
@@ -300,9 +300,9 @@ function getPlayerName($player_id) {
                     </td>
                     <td>
                         <?php if ($is_admin): ?>
-                            <a href="mgmt/matchday_mgmt.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
+                            <a href="matchday_mgmt.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
                         <?php else: ?>
-                            <a href="mgmt/matchday_mgmt.php?view=<?php echo $md['id']; ?>">View</a>
+                            <a href="matchday_mgmt.php?view=<?php echo $md['id']; ?>">View</a>
                         <?php endif; ?>
                     </td>
                 </tr>

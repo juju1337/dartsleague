@@ -1,9 +1,9 @@
 <?php
 // matchday_setup.php - Tournament and Matchday Setup
 
-$players_file = 'players.csv';
-$matchdays_file = 'matchdays.csv';
-$matches_file = 'matches.csv';
+$players_file = 'tables/players.csv';
+$matchdays_file = 'tables/matchdays.csv';
+$matches_file = 'tables/matches.csv';
 
 // Initialize CSV files
 if (!file_exists($matchdays_file)) {
