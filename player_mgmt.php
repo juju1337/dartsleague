@@ -1,5 +1,5 @@
 <?php
-// players.php - Player Management Interface
+// player_mgmt.php - Player Management Interface
 
 $csv_file = 'players.csv';
 
