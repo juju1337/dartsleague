@@ -14,7 +14,7 @@ if (!file_exists($matchdays_file)) {
 
 if (!file_exists($matches_file)) {
     $fp = fopen($matches_file, 'w');
-    fputcsv($fp, ['id', 'matchday_id', 'phase', 'firsttosets', 'firsttolegs', 'player1_id', 'player2_id', 'sets1', 'sets2']);
+    fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
     fclose($fp);
 }
 
@@ -46,7 +46,9 @@ function loadPlayers() {
 }
 
 function generateTournament($config) {
-    global $matchdays_file, $matches_file, $players;
+    global $matchdays_file, $matches_file;
+    
+    $players = loadPlayers();
     
     $num_regular_matchdays = intval($config['num_matchdays']);
     $has_special = isset($config['has_special']) && $config['has_special'] == '1';
@@ -62,7 +64,7 @@ function generateTournament($config) {
     
     // Create matches
     $fp = fopen($matches_file, 'w');
-    fputcsv($fp, ['id', 'matchday_id', 'phase', 'firsttosets', 'firsttolegs', 'player1_id', 'player2_id', 'sets1', 'sets2']);
+    fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
     
     $match_id = 1;
     
@@ -72,6 +74,7 @@ function generateTournament($config) {
             $fp, 
             $match_id, 
             $day, 
+            $players,
             $config['regular_group_rounds'],
             $config['regular_group_sets'],
             $config['regular_group_legs'],
@@ -89,6 +92,7 @@ function generateTournament($config) {
             $fp,
             $match_id,
             $special_day,
+            $players,
             $config['special_group_rounds'],
             $config['special_group_sets'],
             $config['special_group_legs'],
@@ -102,8 +106,7 @@ function generateTournament($config) {
     fclose($fp);
 }
 
-function generateMatchdayMatches($fp, $match_id, $day, $group_rounds, $group_sets, $group_legs, $has_playoffs, $playoff_sets, $playoff_legs, $has_third) {
-    global $players;
+function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, $group_sets, $group_legs, $has_playoffs, $playoff_sets, $playoff_legs, $has_third) {
     
     // Generate group phase matches
     for ($round = 1; $round <= intval($group_rounds); $round++) {
@@ -145,7 +148,7 @@ function generateMatchdayMatches($fp, $match_id, $day, $group_rounds, $group_set
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tournament Setup</title>
+    <title>Tournament Setup - Darts League</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .form-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; }
