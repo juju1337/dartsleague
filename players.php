@@ -116,7 +116,7 @@ function deletePlayer($id) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Player Management - Darts League</title>
+    <title>Player Management</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         table { border-collapse: collapse; width: 100%; margin-top: 20px; }
