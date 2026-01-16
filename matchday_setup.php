@@ -14,7 +14,7 @@ if (!file_exists($matchdays_file)) {
 
 if (!file_exists($matches_file)) {
     $fp = fopen($matches_file, 'w');
-    fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
+    fputcsv($fp, ['id', 'matchday_id', 'phase', 'firsttosets', 'firsttolegs', 'player1_id', 'player2_id', 'sets1', 'sets2']);
     fclose($fp);
 }
 
@@ -62,7 +62,7 @@ function generateTournament($config) {
     
     // Create matches
     $fp = fopen($matches_file, 'w');
-    fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
+    fputcsv($fp, ['id', 'matchday_id', 'phase', 'firsttosets', 'firsttolegs', 'player1_id', 'player2_id', 'sets1', 'sets2']);
     
     $match_id = 1;
     
