@@ -1,5 +1,5 @@
 <?php
-// setup.php - Tournament and Matchday Setup
+// matchday_setup.php - Tournament and Matchday Setup
 
 $players_file = 'players.csv';
 $matchdays_file = 'matchdays.csv';
@@ -179,19 +179,19 @@ function generateMatchdayMatches($fp, $match_id, $day, $group_rounds, $group_set
     <?php if ($setup_complete): ?>
         <div class="info">
             <strong>Setup Complete!</strong> Tournament structure has been created.<br>
-            <a href="matchdays.php"><button type="button">Go to Matchday Management</button></a>
-            <a href="setup.php"><button type="button">Start New Setup</button></a>
+            <a href="matchday_mgmt.php"><button type="button">Go to Matchday Management</button></a>
+            <a href="matchday_setup.php"><button type="button">Start New Setup</button></a>
         </div>
     <?php else: ?>
         <?php if (empty($players)): ?>
             <div class="warning">
                 <strong>Warning:</strong> No players found! Please add players before setting up the tournament.<br>
-                <a href="players.php"><button type="button">Go to Player Management</button></a>
+                <a href="player_mgmt.php"><button type="button">Go to Player Management</button></a>
             </div>
         <?php elseif (count($players) < 4): ?>
             <div class="warning">
                 <strong>Warning:</strong> You need at least 4 players for playoffs. Currently registered: <?php echo count($players); ?> players.<br>
-                <a href="players.php"><button type="button">Add More Players</button></a>
+                <a href="player_mgmt.php"><button type="button">Add More Players</button></a>
             </div>
         <?php else: ?>
             <div class="info">
@@ -298,6 +298,6 @@ function generateMatchdayMatches($fp, $match_id, $day, $group_rounds, $group_set
         </form>
     <?php endif; ?>
     
-    <p><a href="players.php">Back to Player Management</a></p>
+    <p><a href="player_mgmt.php">Back to Player Management</a></p>
 </body>
 </html>

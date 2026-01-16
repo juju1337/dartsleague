@@ -181,9 +181,9 @@ function getPlayerName($player_id) {
         <!-- Admin Panel -->
         <div class="admin-panel">
             <h3>Management Area</h3>
-            <a href="players.php"><button>Player Management</button></a>
-            <a href="setup.php"><button>Tournament Setup</button></a>
-            <a href="matchdays.php"><button>Matchday Management</button></a>
+            <a href="player_mgmt.php"><button>Player Management</button></a>
+            <a href="matchday_setup.php"><button>Tournament Setup</button></a>
+            <a href="matchday_mgmt.php"><button>Matchday Management</button></a>
             <a href="index.php?logout=1"><button>Logout</button></a>
         </div>
     <?php else: ?>

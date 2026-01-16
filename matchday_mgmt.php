@@ -1,5 +1,5 @@
 <?php
-// matchdays.php - Matchday Management
+// matchday_mgmt.php - Matchday Management
 
 $players_file = 'players.csv';
 $matchdays_file = 'matchdays.csv';
@@ -198,7 +198,7 @@ function getPhaseLabel($phase) {
     <?php if (empty($matchdays)): ?>
         <div class="info">
             No matchdays created yet. Please run the tournament setup first.<br>
-            <a href="setup.php"><button type="button">Go to Tournament Setup</button></a>
+            <a href="matchday_setup.php"><button type="button">Go to Tournament Setup</button></a>
         </div>
     <?php elseif ($edit_matchday): ?>
         <!-- Edit Matchday Form -->
@@ -369,8 +369,8 @@ function getPhaseLabel($phase) {
     <?php endif; ?>
     
     <p>
-        <a href="players.php">Player Management</a> | 
-        <a href="setup.php">Tournament Setup</a>
+        <a href="player_mgmt.php">Player Management</a> | 
+        <a href="matchday_setup.php">Tournament Setup</a>
     </p>
 </body>
 </html>
