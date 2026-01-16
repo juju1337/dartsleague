@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 deletePlayer($_POST['id']);
                 break;
         }
-        header('Location: players.php');
+        header('Location: player_mgmt.php');
         exit;
     }
 }
@@ -143,7 +143,7 @@ function deletePlayer($id) {
             
             <input type="submit" value="<?php echo $edit_player ? 'Update Player' : 'Add Player'; ?>">
             <?php if ($edit_player): ?>
-                <a href="players.php"><button type="button">Cancel</button></a>
+                <a href="players_mgmt.php"><button type="button">Cancel</button></a>
             <?php endif; ?>
         </form>
     </div>
@@ -165,7 +165,7 @@ function deletePlayer($id) {
                     <td><?php echo htmlspecialchars($player['name']); ?></td>
                     <td><?php echo htmlspecialchars($player['nickname']); ?></td>
                     <td>
-                        <a href="players.php?edit=<?php echo $player['id']; ?>"><button>Edit</button></a>
+                        <a href="player_mgmt.php?edit=<?php echo $player['id']; ?>"><button>Edit</button></a>
                         <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this player?');">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="id" value="<?php echo $player['id']; ?>">
