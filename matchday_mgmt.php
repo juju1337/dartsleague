@@ -95,7 +95,8 @@ function getMatchesByMatchday($matchday_id) {
 }
 
 function updateMatchday($id, $date, $location) {
-    global $matchdays_file, $matchdays;
+    global $matchdays_file;
+    $matchdays = loadMatchdays();
     $fp = fopen($matchdays_file, 'w');
     fputcsv($fp, ['id', 'date', 'location']);
     foreach ($matchdays as $md) {
