@@ -1,5 +1,5 @@
 <?php
-// matchday_mgmt.php - Matchday Management
+// matchdays.php - Matchday Management
 
 $players_file = 'tables/players.csv';
 $matchdays_file = 'tables/matchdays.csv';
@@ -9,13 +9,13 @@ $matches_file = 'tables/matches.csv';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_matchday'])) {
         updateMatchday($_POST['id'], $_POST['date'], $_POST['location']);
-        header('Location: matchday_mgmt.php');
+        header('Location: matchdays.php');
         exit;
     }
     
     if (isset($_POST['assign_playoffs'])) {
         assignPlayoffPlayers($_POST['matchday_id'], $_POST);
-        header('Location: matchday_mgmt.php?view=' . $_POST['matchday_id']);
+        header('Location: matchdays.php?view=' . $_POST['matchday_id']);
         exit;
     }
 }
@@ -216,7 +216,7 @@ function getPhaseLabel($phase) {
                 <input type="text" name="location" value="<?php echo htmlspecialchars($md['location']); ?>" size="50"><br>
                 
                 <input type="submit" name="update_matchday" value="Save">
-                <a href="matchday_mgmt.php"><button type="button">Cancel</button></a>
+                <a href="matchdays.php"><button type="button">Cancel</button></a>
             </form>
         </div>
     <?php elseif ($view_matchday): ?>
@@ -232,7 +232,7 @@ function getPhaseLabel($phase) {
         <p>
             <strong>Date:</strong> <?php echo $md['date'] ? $md['date'] : 'Not set'; ?> | 
             <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?> |
-            <a href="matchday_mgmt.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
+            <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
         </p>
         
         <!-- Group Phase Matches -->
@@ -340,7 +340,7 @@ function getPhaseLabel($phase) {
             <?php endif; ?>
         <?php endif; ?>
         
-        <p><a href="matchday_mgmt.php"><button type="button">Back to All Matchdays</button></a></p>
+        <p><a href="matchdays.php"><button type="button">Back to All Matchdays</button></a></p>
         
     <?php else: ?>
         <!-- List All Matchdays -->
@@ -361,8 +361,8 @@ function getPhaseLabel($phase) {
                 <td><?php echo $md['location'] ? htmlspecialchars($md['location']) : '<em>Not set</em>'; ?></td>
                 <td><?php echo $match_count; ?> matches</td>
                 <td>
-                    <a href="matchday_mgmt.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
-                    <a href="matchday_mgmt.php?edit=<?php echo $md['id']; ?>"><button>Edit</button></a>
+                    <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
+                    <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit</button></a>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -370,7 +370,7 @@ function getPhaseLabel($phase) {
     <?php endif; ?>
     
     <p>
-        <a href="player_mgmt.php">Player Management</a> | 
+        <a href="players.php">Player Management</a> | 
         <a href="matchday_setup.php">Tournament Setup</a>
     </p>
 </body>

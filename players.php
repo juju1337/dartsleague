@@ -1,5 +1,5 @@
 <?php
-// player_mgmt.php - Player Management Interface
+// players.php - Player Management Interface
 
 $csv_file = 'tables/players.csv';
 
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 deletePlayer($_POST['id']);
                 break;
         }
-        header('Location: player_mgmt.php');
+        header('Location: players.php');
         exit;
     }
 }
@@ -165,7 +165,7 @@ function deletePlayer($id) {
                     <td><?php echo htmlspecialchars($player['name']); ?></td>
                     <td><?php echo htmlspecialchars($player['nickname']); ?></td>
                     <td>
-                        <a href="player_mgmt.php?edit=<?php echo $player['id']; ?>"><button>Edit</button></a>
+                        <a href="players.php?edit=<?php echo $player['id']; ?>"><button>Edit</button></a>
                         <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this player?');">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="id" value="<?php echo $player['id']; ?>">

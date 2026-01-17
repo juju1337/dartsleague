@@ -181,9 +181,9 @@ function getPlayerName($player_id) {
         <!-- Admin Panel -->
         <div class="admin-panel">
             <h3>Management Area</h3>
-            <a href="player_mgmt.php"><button>Player Management</button></a>
+            <a href="players.php"><button>Player Management</button></a>
             <a href="matchday_setup.php"><button>Tournament Setup</button></a>
-            <a href="matchday_mgmt.php"><button>Matchday Management</button></a>
+            <a href="matchdays.php"><button>Matchday Management</button></a>
             <a href="index.php?logout=1"><button>Logout</button></a>
         </div>
     <?php else: ?>
@@ -300,9 +300,9 @@ function getPlayerName($player_id) {
                     </td>
                     <td>
                         <?php if ($is_admin): ?>
-                            <a href="matchday_mgmt.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
+                            <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
                         <?php else: ?>
-                            <a href="matchday_mgmt.php?view=<?php echo $md['id']; ?>">View</a>
+                            <a href="matchdays.php?view=<?php echo $md['id']; ?>">View</a>
                         <?php endif; ?>
                     </td>
                 </tr>
