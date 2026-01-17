@@ -176,5 +176,9 @@ function deletePlayer($id) {
             <?php endforeach; ?>
         </table>
     <?php endif; ?>
+    
+    <p>
+        <a href="index.php">Home</a>
+    </p>
 </body>
 </html>

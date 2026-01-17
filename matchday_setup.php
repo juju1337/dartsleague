@@ -301,6 +301,9 @@ function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, 
         </form>
     <?php endif; ?>
     
-    <p><a href="players.php">Back to Player Management</a></p>
+    <p>
+        <a href="players.php">Back to Player Management</a> | 
+        <a href="index.php">Home</a>
+    </p>
 </body>
 </html>
