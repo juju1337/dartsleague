@@ -1,5 +1,7 @@
 <?php
 // results_entry.php - Match Results Entry
+session_start();
+
 
 $players_file = 'tables/players.csv';
 $matchdays_file = 'tables/matchdays.csv';
@@ -125,7 +127,7 @@ function loadSets($match_id) {
 }
 
 function getMatchById($match_id) {
-    global $all_matches;
+    $all_matches = loadMatches();
     foreach ($all_matches as $match) {
         if ($match['id'] == $match_id) return $match;
     }
@@ -159,6 +161,44 @@ function addSet($data) {
     global $sets_file;
     
     $match = getMatchById($data['match_id']);
+     if (!$match) {
+        return; // Safety check
+    }
+    
+    // Validate leg counts
+    $legs1 = intval($data['legs1']);
+    $legs2 = intval($data['legs2']);
+    $firsttolegs = intval($match['firsttolegs']);
+    
+    if ($legs1 > $firsttolegs || $legs2 > $firsttolegs) {
+        $_SESSION['error'] = "Legs won cannot exceed first-to-" . $firsttolegs . " format.";
+        return;
+    }
+    
+    if ($legs1 != $firsttolegs && $legs2 != $firsttolegs) {
+        $_SESSION['error'] = "One player must reach " . $firsttolegs . " legs to win the set.";
+        return;
+    }
+    
+    // Check if match is already won
+    $existing_sets = loadSets($data['match_id']);
+    $sets1 = 0;
+    $sets2 = 0;
+    
+    foreach ($existing_sets as $set) {
+        if (intval($set['legs1']) > intval($set['legs2'])) {
+            $sets1++;
+        } elseif (intval($set['legs2']) > intval($set['legs1'])) {
+            $sets2++;
+        }
+    }
+    
+    $firsttosets = intval($match['firsttosets']);
+    if ($sets1 >= $firsttosets || $sets2 >= $firsttosets) {
+        $_SESSION['error'] = "Match is already won (first-to-" . $firsttosets . " sets).";
+        return;
+    }
+    
     $set_id = getNextSetId();
     
     // Calculate 3DA
@@ -218,6 +258,9 @@ function updateMatchScore($match_id) {
     global $matches_file;
     
     $match = getMatchById($match_id);
+     if (!$match) {
+        return; // Safety check
+    }
     $sets = loadSets($match_id);
     
     // Count sets won by each player
@@ -353,7 +396,7 @@ function getPhaseLabel($phase) {
                 echo '<p>Match not found.</p>';
             } elseif ($match['player1id'] == 0 || $match['player2id'] == 0) {
                 echo '<div class="warning">Players not assigned to this match yet. Please assign players first in <a href="matchdays.php?view=' . $selected_matchday . '">Matchday Management</a>.</div>';
-            } else:
+            } else {
             ?>
             
             <h2>Match #<?php echo $match['id']; ?> - <?php echo getPhaseLabel($match['phase']); ?></h2>
@@ -424,6 +467,15 @@ function getPhaseLabel($phase) {
             
             <!-- Add New Set -->
             <h3>Add New Set</h3>
+            
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="warning"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="info"><?php echo $_SESSION['success']; unset($_SESSION['success']); ?></div>
+            <?php endif; ?>
+            
             <form method="POST">
                 <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
                 
@@ -457,7 +509,7 @@ function getPhaseLabel($phase) {
                 <input type="submit" name="add_set" value="Add Set">
             </form>
             
-            <?php endif; ?>
+            <?php } ?>
         <?php endif; ?>
     <?php endif; ?>
     
