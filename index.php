@@ -177,30 +177,6 @@ function getPlayerName($player_id) {
 <body>
     <h1>Tournament Overview</h1>
     
-    <?php if ($is_admin): ?>
-        <!-- Admin Panel -->
-        <div class="admin-panel">
-            <h3>Management Area</h3>
-            <a href="players.php"><button>Player Management</button></a>
-            <a href="matchday_setup.php"><button>Tournament Setup</button></a>
-            <a href="matchdays.php"><button>Matchday Management</button></a>
-            <a href="index.php?logout=1"><button>Logout</button></a>
-        </div>
-    <?php else: ?>
-        <!-- Login Form -->
-        <div class="login-box">
-            <h3>Management Login</h3>
-            <?php if (isset($login_error)): ?>
-                <div class="warning"><?php echo $login_error; ?></div>
-            <?php endif; ?>
-            <form method="POST">
-                <label>Password:</label><br>
-                <input type="password" name="password" required><br>
-                <input type="submit" name="login" value="Login">
-            </form>
-        </div>
-    <?php endif; ?>
-    
     <!-- Tournament Information -->
     <div class="section">
         <?php if (!$tournament_info['has_tournament']): ?>
@@ -310,5 +286,30 @@ function getPlayerName($player_id) {
             </table>
         <?php endif; ?>
     </div>
+    
+    <?php if ($is_admin): ?>
+        <!-- Admin Panel -->
+        <div class="admin-panel">
+            <h3>Management Area</h3>
+            <a href="players.php"><button>Player Management</button></a>
+            <a href="matchday_setup.php"><button>Tournament Setup</button></a>
+            <a href="matchdays.php"><button>Matchday Management</button></a>
+            <a href="index.php?logout=1"><button>Logout</button></a>
+        </div>
+    <?php else: ?>
+        <!-- Login Form -->
+        <div class="login-box">
+            <h3>Management Login</h3>
+            <?php if (isset($login_error)): ?>
+                <div class="warning"><?php echo $login_error; ?></div>
+            <?php endif; ?>
+            <form method="POST">
+                <label>Password:</label><br>
+                <input type="password" name="password" required><br>
+                <input type="submit" name="login" value="Login">
+            </form>
+        </div>
+    <?php endif; ?>
+    
 </body>
 </html>

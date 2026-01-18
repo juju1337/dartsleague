@@ -48,7 +48,19 @@ function loadPlayers() {
 function generateTournament($config) {
     global $matchdays_file, $matches_file;
     
-    $players = loadPlayers();
+    $all_players = loadPlayers();
+    
+    // Filter selected players
+    $players = [];
+    if (isset($config['selected_players']) && is_array($config['selected_players'])) {
+        foreach ($all_players as $player) {
+            if (in_array($player['id'], $config['selected_players'])) {
+                $players[] = $player;
+            }
+        }
+    } else {
+        $players = $all_players;
+    }
     
     $num_regular_matchdays = intval($config['num_matchdays']);
     $has_special = isset($config['has_special']) && $config['has_special'] == '1';
@@ -144,11 +156,23 @@ function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, 
     
     return $match_id;
 }
+
+function getPlayerName($player_id) {
+    $all_players = loadPlayers();
+    if ($player_id == 0) return 'TBD';
+    foreach ($all_players as $p) {
+        if ($p['id'] == $player_id) {
+            return $p['nickname'] ? $p['name'] . ' (' . $p['nickname'] . ')' : $p['name'];
+        }
+    }
+    return 'Unknown';
+}
+
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tournament Setup - Darts League</title>
+    <title>Tournament Setup</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .form-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; }
@@ -203,6 +227,17 @@ function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, 
         <?php endif; ?>
         
         <form method="POST">
+            <div class="form-section">
+                <h2>Select Participating Players</h2>
+                <p>Select which players will participate in this tournament:</p>
+                <?php foreach ($players as $player): ?>
+                    <label class="inline">
+                        <input type="checkbox" name="selected_players[]" value="<?php echo $player['id']; ?>" checked>
+                        <?php echo getPlayerName($player['id']); ?>
+                    </label><br>
+                <?php endforeach; ?>
+            </div>
+            
             <div class="form-section">
                 <h2>Regular Matchdays</h2>
                 

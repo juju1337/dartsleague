@@ -178,6 +178,7 @@ function deletePlayer($id) {
     <?php endif; ?>
     
     <p>
+        <a href="matchday_setup.php">Tournament Setup</a> | 
         <a href="index.php">Home</a>
     </p>
 </body>
