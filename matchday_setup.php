@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Load data
 $players = loadPlayers();
+$matchdays = loadMatchdays();
 
 // Functions
 function loadPlayers() {
@@ -43,6 +44,19 @@ function loadPlayers() {
         fclose($fp);
     }
     return $players;
+}
+
+function loadMatchdays() {
+    global $matchdays_file;
+    $matchdays = [];
+    if (file_exists($matchdays_file) && ($fp = fopen($matchdays_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            $matchdays[] = ['id' => $row[0], 'date' => $row[1], 'location' => $row[2]];
+        }
+        fclose($fp);
+    }
+    return $matchdays;
 }
 
 function generateTournament($config) {
@@ -80,7 +94,7 @@ function generateTournament($config) {
     
     $match_id = 1;
     
-    // Regular matchdays
+// Regular matchdays
     for ($day = 1; $day <= $num_regular_matchdays; $day++) {
         $match_id = generateMatchdayMatches(
             $fp, 
@@ -93,7 +107,10 @@ function generateTournament($config) {
             $config['regular_has_playoffs'],
             $config['regular_playoff_sets'],
             $config['regular_playoff_legs'],
-            isset($config['regular_has_third']) && $config['regular_has_third'] == '1'
+            isset($config['regular_has_third']) && $config['regular_has_third'] == '1',
+            isset($config['regular_different_final']) && $config['regular_different_final'] == '1',
+            isset($config['regular_final_sets']) ? $config['regular_final_sets'] : $config['regular_playoff_sets'],
+            isset($config['regular_final_legs']) ? $config['regular_final_legs'] : $config['regular_playoff_legs']
         );
     }
     
@@ -111,14 +128,17 @@ function generateTournament($config) {
             $config['special_has_playoffs'],
             $config['special_playoff_sets'],
             $config['special_playoff_legs'],
-            isset($config['special_has_third']) && $config['special_has_third'] == '1'
+            isset($config['special_has_third']) && $config['special_has_third'] == '1',
+            isset($config['special_different_final']) && $config['special_different_final'] == '1',
+            isset($config['special_final_sets']) ? $config['special_final_sets'] : $config['special_playoff_sets'],
+            isset($config['special_final_legs']) ? $config['special_final_legs'] : $config['special_playoff_legs']
         );
     }
     
     fclose($fp);
 }
 
-function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, $group_sets, $group_legs, $has_playoffs, $playoff_sets, $playoff_legs, $has_third) {
+function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, $group_sets, $group_legs, $has_playoffs, $playoff_sets, $playoff_legs, $has_third, $different_final, $final_sets, $final_legs) {
     
     // Generate group phase matches
     for ($round = 1; $round <= intval($group_rounds); $round++) {
@@ -138,6 +158,27 @@ function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, 
             }
         }
     }
+    
+    // Generate playoff matches if enabled
+    if ($has_playoffs == '1') {
+        // Semi-finals: 1st vs 4th, 2nd vs 3rd
+        fputcsv($fp, [$match_id++, $day, 'semi1', $playoff_sets, $playoff_legs, 0, 0, 0, 0]);
+        fputcsv($fp, [$match_id++, $day, 'semi2', $playoff_sets, $playoff_legs, 0, 0, 0, 0]);
+        
+        // 3rd place match if enabled
+        if ($has_third) {
+            fputcsv($fp, [$match_id++, $day, 'third', $playoff_sets, $playoff_legs, 0, 0, 0, 0]);
+        }
+        
+        // Final - use different format if specified
+        if ($different_final == '1') {
+            fputcsv($fp, [$match_id++, $day, 'final', $final_sets, $final_legs, 0, 0, 0, 0]);
+        } else {
+            fputcsv($fp, [$match_id++, $day, 'final', $playoff_sets, $playoff_legs, 0, 0, 0, 0]);
+        }
+    }
+    
+    return $match_id;
     
     // Generate playoff matches if enabled
     if ($has_playoffs == '1') {
@@ -198,6 +239,11 @@ function getPlayerName($player_id) {
             var specialSettings = document.getElementById('special_settings');
             specialSettings.style.display = checkbox.checked ? 'block' : 'none';
         }
+        function toggleFinalFormat(prefix) {
+            var checkbox = document.getElementById(prefix + '_different_final');
+            var finalSettings = document.getElementById(prefix + '_final_settings');
+            finalSettings.style.display = checkbox.checked ? 'block' : 'none';
+        }
     </script>
 </head>
 <body>
@@ -221,6 +267,24 @@ function getPlayerName($player_id) {
                 <a href="players.php"><button type="button">Add More Players</button></a>
             </div>
         <?php else: ?>
+            <?php 
+                // Check if tournament already exists
+                $tournament_exists = !empty($matchdays);
+            ?>
+            
+            <?php if ($tournament_exists): ?>
+                <div class="warning">
+                    <strong>Warning:</strong> A tournament structure already exists with <?php echo count($matchdays); ?> matchdays.<br>
+                    Creating a new tournament will overwrite all existing matchdays and matches.<br><br>
+                    <strong>Options:</strong><br>
+                    <a href="matchdays.php"><button type="button">Edit Existing Tournament</button></a>
+                    <button type="button" onclick="document.getElementById('setup_form').style.display='block'; this.parentElement.style.display='none';">Create New Tournament (Overwrite)</button>
+                </div>
+                <div id="setup_form" style="display: none;">
+            <?php else: ?>
+                <div id="setup_form">
+            <?php endif; ?>
+            
             <div class="info">
                 <strong>Players registered:</strong> <?php echo count($players); ?>
             </div>
@@ -254,23 +318,23 @@ function getPlayerName($player_id) {
                     </select>
                     
                     <label>Group match format - First to X sets:</label>
-                    <input type="number" name="regular_group_sets" min="1" value="3" required>
+                    <input type="number" name="regular_group_sets" min="1" value="1" required>
                     
                     <label>Each set - First to X legs:</label>
-                    <input type="number" name="regular_group_legs" min="1" value="5" required>
+                    <input type="number" name="regular_group_legs" min="1" value="3" required>
                 </div>
                 
                 <div class="subsection">
                     <h3>Playoff Settings</h3>
                     
-                    <label class="inline">
+                                        <label class="inline">
                         <input type="checkbox" id="regular_has_playoffs" name="regular_has_playoffs" value="1" onchange="togglePlayoffs('regular')" checked>
                         Include Top 4 Playoffs (semi-finals + final)
                     </label>
                     
                     <div id="regular_playoff_settings" style="display: block; margin-top: 15px;">
                         <label>Playoff match format - First to X sets:</label>
-                        <input type="number" name="regular_playoff_sets" min="1" value="5" required>
+                        <input type="number" name="regular_playoff_sets" min="1" value="1" required>
                         
                         <label>Each set - First to X legs:</label>
                         <input type="number" name="regular_playoff_legs" min="1" value="5" required>
@@ -279,6 +343,20 @@ function getPlayerName($player_id) {
                             <input type="checkbox" name="regular_has_third" value="1" checked>
                             Include 3rd place match
                         </label>
+                        
+                        <br><br>
+                        <label class="inline">
+                            <input type="checkbox" id="regular_different_final" name="regular_different_final" value="1" onchange="toggleFinalFormat('regular')">
+                            Different format for final match
+                        </label>
+                        
+                        <div id="regular_final_settings" style="display: none; margin-top: 15px; padding-left: 20px;">
+                            <label>Final match format - First to X sets:</label>
+                            <input type="number" name="regular_final_sets" min="1" value="1">
+                            
+                            <label>Each set - First to X legs:</label>
+                            <input type="number" name="regular_final_legs" min="1" value="5">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -302,7 +380,7 @@ function getPlayerName($player_id) {
                         </select>
                         
                         <label>Group match format - First to X sets:</label>
-                        <input type="number" name="special_group_sets" min="1" value="5">
+                        <input type="number" name="special_group_sets" min="1" value="3">
                         
                         <label>Each set - First to X legs:</label>
                         <input type="number" name="special_group_legs" min="1" value="5">
@@ -318,7 +396,7 @@ function getPlayerName($player_id) {
                         
                         <div id="special_playoff_settings" style="display: block; margin-top: 15px;">
                             <label>Playoff match format - First to X sets:</label>
-                            <input type="number" name="special_playoff_sets" min="1" value="7">
+                            <input type="number" name="special_playoff_sets" min="1" value="1">
                             
                             <label>Each set - First to X legs:</label>
                             <input type="number" name="special_playoff_legs" min="1" value="5">
@@ -327,6 +405,20 @@ function getPlayerName($player_id) {
                                 <input type="checkbox" name="special_has_third" value="1" checked>
                                 Include 3rd place match
                             </label>
+                            
+                            <br><br>
+                            <label class="inline">
+                                <input type="checkbox" id="special_different_final" name="special_different_final" value="1" onchange="toggleFinalFormat('special')">
+                                Different format for final match
+                            </label>
+                            
+                            <div id="special_final_settings" style="display: none; margin-top: 15px; padding-left: 20px;">
+                                <label>Final match format - First to X sets:</label>
+                                <input type="number" name="special_final_sets" min="1" value="1">
+                                
+                                <label>Each set - First to X legs:</label>
+                                <input type="number" name="special_final_legs" min="1" value="5">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -334,6 +426,7 @@ function getPlayerName($player_id) {
             
             <input type="submit" name="generate_tournament" value="Generate Tournament" onclick="return confirm('This will create all matchdays and matches. Continue?');">
         </form>
+        </div>
     <?php endif; ?>
     
     <p>
