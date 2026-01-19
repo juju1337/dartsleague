@@ -180,7 +180,8 @@ function getPhaseLabel($phase) {
 <html>
 <head>
     <title>Matchday Management</title>
-    <style>
+    <link rel="stylesheet" href="styles.css">
+    <!--<style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         table { border-collapse: collapse; width: 100%; margin: 20px 0; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -192,7 +193,7 @@ function getPhaseLabel($phase) {
         .info { background-color: #e7f3ff; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; }
         .section { margin: 30px 0; padding: 15px; border: 1px solid #ddd; }
         .match-format { font-size: 0.9em; color: #666; }
-    </style>
+    </style>-->
 </head>
 <body>
     <h1>Matchday Management</h1>
