@@ -156,7 +156,8 @@ function getPlayerName($player_id) {
 <html>
 <head>
     <title>Darts League - Tournament Overview</title>
-    <style>
+    <link rel="stylesheet" href="styles.css">
+    <!--<style>
         body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; }
         h1 { color: #333; }
         .admin-panel { background-color: #f0f0f0; padding: 15px; margin: 20px 0; border-left: 4px solid #333; }
@@ -172,7 +173,7 @@ function getPlayerName($player_id) {
         .section { margin: 30px 0; }
         a { text-decoration: none; }
         a:hover { text-decoration: underline; }
-    </style>
+    </style>-->
 </head>
 <body>
     <h1>Tournament Overview</h1>
