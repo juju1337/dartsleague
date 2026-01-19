@@ -1,0 +1,139 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    max-width: 1200px;
+}
+h1 {
+    color: #333;
+}
+h3 {
+    margin-top: 20px;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+}
+th {
+    background-color: #f2f2f2;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+select {
+    padding: 5px;
+    margin: 5px 0;
+}
+
+label {
+    display: block; 
+    margin: 10px 0 5px 0;
+}
+
+label.inline {
+    display: inline;
+    margin: 0 10px 0 0;
+}
+
+input[type="text"], input[type="date"], select {
+    padding: 5px;
+    margin: 5px 0;
+}
+
+input[type="number"] {
+    width: 80px;
+    padding: 5px;
+    margin: 5px
+}
+
+input[type="password"] {
+    padding: 8px;
+    margin: 5px 0;
+    width: 200px;
+}
+
+input[type="submit"], button {
+    padding: 8px 15px;
+    margin: 5px;
+}
+
+input[type="checkbox"] {
+    margin: 5px;
+}
+
+.info {
+    background-color: #e7f3ff;
+    padding: 10px;
+    margin: 10px 0;
+    border-left: 4px solid #2196F3;
+}
+
+.warning {
+    background-color: #fff3cd;
+    padding: 10px;
+    margin: 10px 0;
+    border-left: 4px solid #ffc107;
+}
+
+.form-section {
+    margin-bottom: 30px;
+    padding: 15px;
+    border: 1px solid #ddd;
+}
+
+.section {
+    margin: 30px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+}
+
+.subsection {
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+.group-phase {
+    background-color: #f9f9f9;
+}
+
+.playoff-phase {
+    background-color: #fff3e0;
+}
+
+.match-format { font-size: 0.9em;
+color: #666;
+ }
+ 
+.set-row {
+    background-color: #f9f9f9;
+}
+
+.match-header {
+    background-color: #e8f5e9;
+    font-weight: bold;
+}
+
+.admin-panel {
+    background-color: #f0f0f0;
+    padding: 15px;
+    margin: 20px 0;
+    border-left: 4px solid #333;
+}
+
+.login-box {
+    background-color: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #ddd;
+    max-width: 400px;
+}
+
+.format-box {
+    background-color: #f9f9f9;
+    padding: 10px;
+    margin: 5px 0;
+    border-left: 3px solid #4CAF50;
+}
