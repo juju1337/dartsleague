@@ -304,8 +304,9 @@ function getPhaseLabel($phase) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Results Entry - Darts League</title>
-    <style>
+    <title>Results Entry</title>
+    <link rel="stylesheet" href="styles.css">
+    <!--<style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         table { border-collapse: collapse; margin: 20px 0; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -318,7 +319,7 @@ function getPhaseLabel($phase) {
         .section { margin: 30px 0; padding: 15px; border: 1px solid #ddd; }
         .set-row { background-color: #f9f9f9; }
         .match-header { background-color: #e8f5e9; font-weight: bold; }
-    </style>
+    </style>-->
 </head>
 <body>
     <h1>Results Entry</h1>
