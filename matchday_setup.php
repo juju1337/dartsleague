@@ -214,7 +214,8 @@ function getPlayerName($player_id) {
 <html>
 <head>
     <title>Tournament Setup</title>
-    <style>
+    <link rel="stylesheet" href="styles.css">
+    <!--<style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .form-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; }
         .subsection { margin: 20px 0; padding: 10px; background-color: #f9f9f9; }
@@ -226,7 +227,7 @@ function getPlayerName($player_id) {
         label { display: block; margin: 10px 0 5px 0; }
         label.inline { display: inline; margin: 0 10px 0 0; }
         h3 { margin-top: 20px; }
-    </style>
+    </style>-->
     <script>
         function togglePlayoffs(prefix) {
             var checkbox = document.getElementById(prefix + '_has_playoffs');
