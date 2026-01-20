@@ -1,5 +1,8 @@
 <?php
 // matchdays.php - Matchday Management
+session_start();
+
+$is_admin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
 
 $players_file = 'tables/players.csv';
 $matchdays_file = 'tables/matchdays.csv';
@@ -233,8 +236,10 @@ function getPhaseLabel($phase) {
         <h2>Matchday <?php echo $md['id']; ?></h2>
         <p>
             <strong>Date:</strong> <?php echo $md['date'] ? $md['date'] : 'Not set'; ?> | 
-            <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?> |
-            <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
+            <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?>
+            <?php if ($is_admin): ?>
+                | <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
+            <?php endif; ?>
         </p>
         
         <!-- Group Phase Matches -->
@@ -473,7 +478,7 @@ function getPhaseLabel($phase) {
             }
             ?>
             
-            <?php if ($has_unassigned): ?>
+            <?php if ($has_unassigned  && $is_admin): ?>
                 <div class="info">
                     <strong>Note:</strong> Some playoff matches don't have players assigned yet. Assign them based on group phase standings.
                 </div>
@@ -611,7 +616,9 @@ function getPhaseLabel($phase) {
                 </table>
                 <?php endforeach; ?>
                 
-                <a href="matchday_mgmt.php?view=<?php echo $md['id']; ?>"><button>Edit Player Assignments</button></a>
+                <?php if ($is_admin): ?>
+                    <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>Edit Player Assignments</button></a>
+                <?php endif; ?>
             <?php endif; ?>
         <?php endif; ?>
         
@@ -637,7 +644,9 @@ function getPhaseLabel($phase) {
                 <td><?php echo $match_count; ?> matches</td>
                 <td>
                     <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
-                    <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit</button></a>
+                    <?php if ($is_admin): ?>
+                        <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit</button></a>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>

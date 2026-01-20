@@ -1,5 +1,14 @@
 <?php
 // matchday_setup.php - Tournament and Matchday Setup
+session_start();
+
+$is_admin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
+
+// Redirect non-admins
+if (!$is_admin) {
+    header('Location: index.php');
+    exit;
+}
 
 $players_file = 'tables/players.csv';
 $matchdays_file = 'tables/matchdays.csv';
@@ -61,6 +70,26 @@ function loadMatchdays() {
 
 function generateTournament($config) {
     global $matchdays_file, $matches_file;
+    
+    // Clear existing tournament data
+    if (file_exists($matchdays_file)) {
+        $fp = fopen($matchdays_file, 'w');
+        fputcsv($fp, ['id', 'date', 'location']);
+        fclose($fp);
+    }
+    
+    if (file_exists($matches_file)) {
+        $fp = fopen($matches_file, 'w');
+        fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
+        fclose($fp);
+    }
+    
+    $sets_file = 'tables/sets.csv';
+    if (file_exists($sets_file)) {
+        $fp = fopen($sets_file, 'w');
+        fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
+        fclose($fp);
+    }
     
     $all_players = loadPlayers();
     

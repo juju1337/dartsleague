@@ -1,6 +1,14 @@
 <?php
 // players.php - Player Management Interface
+session_start();
 
+$is_admin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
+
+// Redirect non-admins
+if (!$is_admin) {
+    header('Location: index.php');
+    exit;
+}
 $csv_file = 'tables/players.csv';
 
 // Initialize CSV file if it doesn't exist
