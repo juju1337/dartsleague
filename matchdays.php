@@ -21,6 +21,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: matchdays.php?view=' . $_POST['matchday_id']);
         exit;
     }
+    
+    if (isset($_POST['add_set'])) {
+        $result = addSet($_POST);
+        if ($result['success']) {
+            $_SESSION['success'] = $result['message'];
+        } else {
+            $_SESSION['error'] = $result['message'];
+        }
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id']);
+        exit;
+    }
+    
+    if (isset($_POST['delete_set'])) {
+        deleteSet($_POST['set_id']);
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id']);
+        exit;
+    }
 }
 
 // Load data
@@ -31,6 +48,7 @@ $all_matches = loadMatches();
 // View specific matchday
 $view_matchday = isset($_GET['view']) ? intval($_GET['view']) : null;
 $edit_matchday = isset($_GET['edit']) ? intval($_GET['edit']) : null;
+$edit_match = isset($_GET['edit_match']) ? intval($_GET['edit_match']) : null;
 
 // Functions
 function loadPlayers() {
@@ -99,7 +117,10 @@ function getMatchesByMatchday($matchday_id) {
 
 function updateMatchday($id, $date, $location) {
     global $matchdays_file;
+    
+    // Load current matchdays
     $matchdays = loadMatchdays();
+    
     $fp = fopen($matchdays_file, 'w');
     fputcsv($fp, ['id', 'date', 'location']);
     foreach ($matchdays as $md) {
@@ -113,8 +134,7 @@ function updateMatchday($id, $date, $location) {
 }
 
 function assignPlayoffPlayers($matchday_id, $data) {
-    global $matches_file;
-    $all_matches = loadMatches();
+    global $matches_file, $all_matches;
     
     $fp = fopen($matches_file, 'w');
     fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
@@ -194,7 +214,8 @@ function getPhaseLabel($phase) {
         input[type="text"], input[type="date"], select { padding: 5px; margin: 5px 0; }
         input[type="submit"], button { padding: 8px 15px; margin: 5px; }
         .info { background-color: #e7f3ff; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; }
-        .section { margin: 30px 0; padding: 15px; border: 1px solid #ddd; }
+        .warning { background-color: #fff3cd; padding: 10px; margin: 10px 0; border-left: 4px solid #ffc107; }
+        .section { margin: 30px 0; padding: 15px; border: 1px solid #ddd; background-color: #fafafa; }
         .match-format { font-size: 0.9em; color: #666; }
     </style>-->
 </head>
@@ -204,7 +225,7 @@ function getPhaseLabel($phase) {
     <?php if (empty($matchdays)): ?>
         <div class="info">
             No matchdays created yet. Please run the tournament setup first.<br>
-            <a href="matchday_setup.php"><button type="button">Go to Tournament Setup</button></a>
+            <a href="setup.php"><button type="button">Go to Tournament Setup</button></a>
         </div>
     <?php elseif ($edit_matchday): ?>
         <!-- Edit Matchday Form -->
@@ -236,7 +257,7 @@ function getPhaseLabel($phase) {
         <h2>Matchday <?php echo $md['id']; ?></h2>
         <p>
             <strong>Date:</strong> <?php echo $md['date'] ? $md['date'] : 'Not set'; ?> | 
-            <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?>
+            <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?> |
             <?php if ($is_admin): ?>
                 | <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
             <?php endif; ?>
@@ -247,218 +268,21 @@ function getPhaseLabel($phase) {
         <?php if (empty($group_matches)): ?>
             <p>No group matches for this matchday.</p>
         <?php else: ?>
-            <?php 
-            $first_match = array_values($group_matches)[0];
-            $show_sets = intval($first_match['firsttosets']) > 1;
-            ?>
-            <p class="match-format">Format: First to <?php echo $first_match['firsttosets']; ?> sets (each set first to <?php echo $first_match['firsttolegs']; ?> legs)</p>
-            
-            <?php foreach ($group_matches as $match): 
-                // Get detailed stats from sets.csv
-                $sets_data = [];
-                $p1_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                $p2_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                
-                $sets_file = 'tables/sets.csv';
-                if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                    $header = fgetcsv($fp);
-                    while (($row = fgetcsv($fp)) !== false) {
-                        if ($row[1] == $match['id']) { // matchid
-                            $sets_data[] = [
-                                'legs1' => intval($row[4]),
-                                'legs2' => intval($row[5]),
-                                'darts1' => intval($row[6]),
-                                'darts2' => intval($row[7]),
-                                'dblattempts1' => intval($row[10]),
-                                'dblattempts2' => intval($row[11])
-                            ];
-                            
-                            $p1_stats['total_legs'] += intval($row[4]);
-                            $p2_stats['total_legs'] += intval($row[5]);
-                            $p1_stats['total_darts'] += intval($row[6]);
-                            $p2_stats['total_darts'] += intval($row[7]);
-                            $p1_stats['dbl_attempts'] += intval($row[10]);
-                            $p2_stats['dbl_attempts'] += intval($row[11]);
-                            
-                            // Count successful doubles (= legs won)
-                            $p1_stats['dbl_hit'] += intval($row[4]);
-                            $p2_stats['dbl_hit'] += intval($row[5]);
-                        }
-                    }
-                    fclose($fp);
-                }
-                
-                $p1_3da = ($p1_stats['total_legs'] > 0) ? round(($p1_stats['total_darts'] / $p1_stats['total_legs']) * 3, 2) : '-';
-                $p2_3da = ($p2_stats['total_legs'] > 0) ? round(($p2_stats['total_darts'] / $p2_stats['total_legs']) * 3, 2) : '-';
-                $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
-                $p2_dbl = ($p2_stats['dbl_attempts'] > 0) ? round(($p2_stats['dbl_hit'] / $p2_stats['dbl_attempts']) * 100, 1) . '%' : '-';
-            ?>
-            
-            <table style="margin-bottom: 20px;">
-                <tr>
-                    <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>">Match #<?php echo $match['id']; ?></th>
-                </tr>
-                <tr>
-                    <th class="player-name">Player</th>
-                    <?php if ($show_sets): ?>
-                        <th>Sets</th>
-                        <?php for ($i = 1; $i <= count($sets_data); $i++): ?>
-                            <th>Set <?php echo $i; ?></th>
-                        <?php endfor; ?>
-                    <?php else: ?>
-                        <th>Legs</th>
-                    <?php endif; ?>
-                    <th>3DA</th>
-                    <th>Dbl%</th>
-                </tr>
-                <tr>
-                    <td  class="player-name"><?php echo getPlayerName($match['player1id']); ?></td>
-                    <?php if ($show_sets): ?>
-                        <td><strong><?php echo $match['sets1']; ?></strong></td>
-                        <?php foreach ($sets_data as $set): ?>
-                            <td><?php echo $set['legs1']; ?></td>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <td><strong><?php echo $p1_stats['total_legs']; ?></strong></td>
-                    <?php endif; ?>
-                    <td><?php echo $p1_3da; ?></td>
-                    <td><?php echo $p1_dbl; ?></td>
-                </tr>
-                <tr>
-                    <td  class="player-name"><?php echo getPlayerName($match['player2id']); ?></td>
-                    <?php if ($show_sets): ?>
-                        <td><strong><?php echo $match['sets2']; ?></strong></td>
-                        <?php foreach ($sets_data as $set): ?>
-                            <td><?php echo $set['legs2']; ?></td>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <td><strong><?php echo $p2_stats['total_legs']; ?></strong></td>
-                    <?php endif; ?>
-                    <td><?php echo $p2_3da; ?></td>
-                    <td><?php echo $p2_dbl; ?></td>
-                </tr>
-            </table>
-            <?php endforeach; ?>
-        <?php endif; ?>
-        
-        <!-- Group Phase Standings -->
-        <?php if (!empty($group_matches)): ?>
-            <h3>Group Phase Standings</h3>
-            <?php
-            // Calculate standings
-            $standings = [];
-            foreach ($players as $player) {
-                $standings[$player['id']] = [
-                    'name' => getPlayerName($player['id']),
-                    'played' => 0,
-                    'won' => 0,
-                    'lost' => 0,
-                    'legs_for' => 0,
-                    'legs_against' => 0,
-                    'points' => 0,
-                    'total_darts' => 0,
-                    'total_legs' => 0
-                ];
-            }
-            
-            // Process group matches
-            foreach ($group_matches as $match) {
-                $p1id = $match['player1id'];
-                $p2id = $match['player2id'];
-                $sets1 = intval($match['sets1']);
-                $sets2 = intval($match['sets2']);
-                
-                // Only count completed matches
-                if ($sets1 > 0 || $sets2 > 0) {
-                    $standings[$p1id]['played']++;
-                    $standings[$p2id]['played']++;
-                    
-                    // Determine winner
-                    if ($sets1 > $sets2) {
-                        $standings[$p1id]['won']++;
-                        $standings[$p1id]['points'] += 2;
-                        $standings[$p2id]['lost']++;
-                    } elseif ($sets2 > $sets1) {
-                        $standings[$p2id]['won']++;
-                        $standings[$p2id]['points'] += 2;
-                        $standings[$p1id]['lost']++;
-                    }
-                    
-                    // Get legs from sets.csv for this match
-                    $sets_file = 'tables/sets.csv';
-                    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                        $header = fgetcsv($fp);
-                        while (($row = fgetcsv($fp)) !== false) {
-                            if ($row[1] == $match['id']) { // matchid column
-                                $legs1 = intval($row[4]);
-                                $legs2 = intval($row[5]);
-                                $darts1 = intval($row[6]);
-                                $darts2 = intval($row[7]);
-                                
-                                $standings[$p1id]['legs_for'] += $legs1;
-                                $standings[$p1id]['legs_against'] += $legs2;
-                                $standings[$p2id]['legs_for'] += $legs2;
-                                $standings[$p2id]['legs_against'] += $legs1;
-                                
-                                // Calculate 3DA (only if darts > 0)
-                                if ($darts1 > 0) {
-                                    $standings[$p1id]['total_darts'] += $darts1;
-                                    $standings[$p1id]['total_legs'] += $legs1;
-                                }
-                                if ($darts2 > 0) {
-                                    $standings[$p2id]['total_darts'] += $darts2;
-                                    $standings[$p2id]['total_legs'] += $legs2;
-                                }
-                            }
-                        }
-                        fclose($fp);
-                    }
-                }
-            }
-            
-            // Sort by points, then legs difference
-            usort($standings, function($a, $b) {
-                if ($b['points'] != $a['points']) {
-                    return $b['points'] - $a['points'];
-                }
-                $diff_a = $a['legs_for'] - $a['legs_against'];
-                $diff_b = $b['legs_for'] - $b['legs_against'];
-                if ($diff_b != $diff_a) {
-                    return $diff_b - $diff_a;
-                }
-                return $b['legs_for'] - $a['legs_for'];
-            });
-            ?>
-            
             <table>
                 <tr>
-                    <th>Pos</th>
-                    <th>Player</th>
-                    <th>Played</th>
-                    <th>Wins</th>
-                    <th>Losses</th>
-                    <th>Legs+</th>
-                    <th>Legs-</th>
-                    <th>Leg Diff</th>
-                    <th>Points</th>
-                    <th>3DA</th>
+                    <th>Match #</th>
+                    <th>Player 1</th>
+                    <th>Player 2</th>
+                    <th>Format</th>
+                    <th>Result</th>
                 </tr>
-                <?php 
-                $pos = 1;
-                foreach ($standings as $s): 
-                    $three_da = ($s['total_legs'] > 0) ? round(($s['total_darts'] / $s['total_legs']) * 3, 2) : '-';
-                ?>
-                <tr>
-                    <td><?php echo $pos++; ?></td>
-                    <td><?php echo $s['name']; ?></td>
-                    <td><?php echo $s['played']; ?></td>
-                    <td><?php echo $s['won']; ?></td>
-                    <td><?php echo $s['lost']; ?></td>
-                    <td><?php echo $s['legs_for']; ?></td>
-                    <td><?php echo $s['legs_against']; ?></td>
-                    <td><?php echo $s['legs_for'] - $s['legs_against']; ?></td>
-                    <td><strong><?php echo $s['points']; ?></strong></td>
-                    <td><?php echo $three_da; ?></td>
+                <?php foreach ($group_matches as $match): ?>
+                <tr class="group-phase">
+                    <td><?php echo $match['id']; ?></td>
+                    <td><?php echo getPlayerName($match['player1id']); ?></td>
+                    <td><?php echo getPlayerName($match['player2id']); ?></td>
+                    <td class="match-format">First to <?php echo $match['firsttosets']; ?> sets (each to <?php echo $match['firsttolegs']; ?> legs)</td>
+                    <td><?php echo $match['sets1']; ?> : <?php echo $match['sets2']; ?></td>
                 </tr>
                 <?php endforeach; ?>
             </table>
@@ -478,14 +302,11 @@ function getPhaseLabel($phase) {
             }
             ?>
             
-            <?php if ($has_unassigned  && $is_admin): ?>
+            <?php if ($has_unassigned && $is_admin): ?>
                 <div class="info">
                     <strong>Note:</strong> Some playoff matches don't have players assigned yet. Assign them based on group phase standings.
                 </div>
-                <?php 
-                    $first_playoff = array_values($playoff_matches)[0];
-                ?>
-                <p class="match-format">Format: First to <?php echo $first_playoff['firsttosets']; ?> sets (each set first to <?php echo $first_playoff['firsttolegs']; ?> legs)</p>
+                
                 <form method="POST">
                     <input type="hidden" name="matchday_id" value="<?php echo $md['id']; ?>">
                     <table>
@@ -493,6 +314,7 @@ function getPhaseLabel($phase) {
                             <th>Match</th>
                             <th>Player 1</th>
                             <th>Player 2</th>
+                            <th>Format</th>
                         </tr>
                         <?php foreach ($playoff_matches as $match): ?>
                         <tr class="playoff-phase">
@@ -517,105 +339,31 @@ function getPhaseLabel($phase) {
                                     <?php endforeach; ?>
                                 </select>
                             </td>
+                            <td class="match-format">First to <?php echo $match['firsttosets']; ?> sets (each to <?php echo $match['firsttolegs']; ?> legs)</td>
                         </tr>
                         <?php endforeach; ?>
                     </table>
                     <input type="submit" name="assign_playoffs" value="Assign Players">
                 </form>
             <?php else: ?>
-                <?php 
-                $first_playoff = array_values($playoff_matches)[0];
-                $show_sets = intval($first_playoff['firsttosets']) > 1;
-                ?>
-                <p class="match-format">Format: First to <?php echo $first_playoff['firsttosets']; ?> sets (each set first to <?php echo $first_playoff['firsttolegs']; ?> legs)</p>
-                
-                <?php foreach ($playoff_matches as $match): 
-                    // Get detailed stats from sets.csv
-                    $sets_data = [];
-                    $p1_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                    $p2_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                    
-                    $sets_file = 'tables/sets.csv';
-                    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                        $header = fgetcsv($fp);
-                        while (($row = fgetcsv($fp)) !== false) {
-                            if ($row[1] == $match['id']) { // matchid
-                                $sets_data[] = [
-                                    'legs1' => intval($row[4]),
-                                    'legs2' => intval($row[5]),
-                                    'darts1' => intval($row[6]),
-                                    'darts2' => intval($row[7]),
-                                    'dblattempts1' => intval($row[10]),
-                                    'dblattempts2' => intval($row[11])
-                                ];
-                                
-                                $p1_stats['total_legs'] += intval($row[4]);
-                                $p2_stats['total_legs'] += intval($row[5]);
-                                $p1_stats['total_darts'] += intval($row[6]);
-                                $p2_stats['total_darts'] += intval($row[7]);
-                                $p1_stats['dbl_attempts'] += intval($row[10]);
-                                $p2_stats['dbl_attempts'] += intval($row[11]);
-                                
-                                // Count successful doubles (= legs won)
-                                $p1_stats['dbl_hit'] += intval($row[4]);
-                                $p2_stats['dbl_hit'] += intval($row[5]);
-                            }
-                        }
-                        fclose($fp);
-                    }
-                    
-                    $p1_3da = ($p1_stats['total_legs'] > 0) ? round(($p1_stats['total_darts'] / $p1_stats['total_legs']) * 3, 2) : '-';
-                    $p2_3da = ($p2_stats['total_legs'] > 0) ? round(($p2_stats['total_darts'] / $p2_stats['total_legs']) * 3, 2) : '-';
-                    $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
-                    $p2_dbl = ($p2_stats['dbl_attempts'] > 0) ? round(($p2_stats['dbl_hit'] / $p2_stats['dbl_attempts']) * 100, 1) . '%' : '-';
-                ?>
-                
-                <table style="margin-bottom: 20px;">
+                <table>
                     <tr>
-                        <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>"><?php echo getPhaseLabel($match['phase']); ?></th>
+                        <th>Match</th>
+                        <th>Player 1</th>
+                        <th>Player 2</th>
+                        <th>Format</th>
+                        <th>Result</th>
                     </tr>
-                    <tr>
-                        <th class="player-name">Player</th>
-                        <?php if ($show_sets): ?>
-                            <th>Sets</th>
-                            <?php for ($i = 1; $i <= count($sets_data); $i++): ?>
-                                <th>Set <?php echo $i; ?></th>
-                            <?php endfor; ?>
-                        <?php else: ?>
-                            <th>Legs</th>
-                        <?php endif; ?>
-                        <th>3DA</th>
-                        <th>Dbl%</th>
+                    <?php foreach ($playoff_matches as $match): ?>
+                    <tr class="playoff-phase">
+                        <td><?php echo getPhaseLabel($match['phase']); ?></td>
+                        <td><?php echo getPlayerName($match['player1id']); ?></td>
+                        <td><?php echo getPlayerName($match['player2id']); ?></td>
+                        <td class="match-format">First to <?php echo $match['firsttosets']; ?> sets (each to <?php echo $match['firsttolegs']; ?> legs)</td>
+                        <td><?php echo $match['sets1']; ?> : <?php echo $match['sets2']; ?></td>
                     </tr>
-                    <tr>
-                        <td class="player-name"><?php echo getPlayerName($match['player1id']); ?></td>
-                        <?php if ($show_sets): ?>
-                            <td><strong><?php echo $match['sets1']; ?></strong></td>
-                            <?php foreach ($sets_data as $set): ?>
-                                <td><?php echo $set['legs1']; ?></td>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <td><strong><?php echo $p1_stats['total_legs']; ?></strong></td>
-                        <?php endif; ?>
-                        <td><?php echo $p1_3da; ?></td>
-                        <td><?php echo $p1_dbl; ?></td>
-                    </tr>
-                    <tr>
-                        <td class="player-name"><?php echo getPlayerName($match['player2id']); ?></td>
-                        <?php if ($show_sets): ?>
-                            <td><strong><?php echo $match['sets2']; ?></strong></td>
-                            <?php foreach ($sets_data as $set): ?>
-                                <td><?php echo $set['legs2']; ?></td>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <td><strong><?php echo $p2_stats['total_legs']; ?></strong></td>
-                        <?php endif; ?>
-                        <td><?php echo $p2_3da; ?></td>
-                        <td><?php echo $p2_dbl; ?></td>
-                    </tr>
+                    <?php endforeach; ?>
                 </table>
-                <?php endforeach; ?>
-                
                 <?php if ($is_admin): ?>
                     <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>Edit Player Assignments</button></a>
                 <?php endif; ?>
