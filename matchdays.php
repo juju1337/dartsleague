@@ -277,9 +277,14 @@ function addSet($data) {
     $da1 = floatval($data['3da1']);
     $da2 = floatval($data['3da2']);
     
-    // Calculate darts thrown from 3DA and legs
+    /* Calculate darts thrown from 3DA and legs
     $darts1 = ($da1 > 0) ? round(($da1 * $legs1) / 3) : 0;
     $darts2 = ($da2 > 0) ? round(($da2 * $legs2) / 3) : 0;
+    */
+    
+    $darts1 = floatval($data['darts1']);
+    $darts2 = floatval($data['darts2']);
+    
     
     $fp = fopen($sets_file, 'a');
     fputcsv($fp, [
@@ -479,6 +484,9 @@ function getPhaseLabel($phase) {
                                 <th>Set</th>
                                 <th>Player</th>
                                 <th>Legs</th>
+                                <!--Added manually-->
+                                <th>Total Darts</th>
+                                <!--end-->
                                 <th>Avg</th>
                                 <th>Double Att.</th>
                                 <th>Highscore</th>
@@ -493,6 +501,9 @@ function getPhaseLabel($phase) {
                                 <td rowspan="2"><?php echo $set_num; ?></td>
                                 <td><?php echo getPlayerName($match['player1id']); ?></td>
                                 <td><?php echo $set['legs1']; ?></td>
+                                <!--Added manually-->
+                                <td><?php echo $set['darts1']; ?></td>
+                                <!--end-->
                                 <td><?php echo $set['3da1']; ?></td>
                                 <td><?php echo $set['dblattempts1']; ?></td>
                                 <td><?php echo $set['highscore1']; ?></td>
@@ -509,6 +520,9 @@ function getPhaseLabel($phase) {
                             <tr>
                                 <td><?php echo getPlayerName($match['player2id']); ?></td>
                                 <td><?php echo $set['legs2']; ?></td>
+                                <!--Added manually-->
+                                <td><?php echo $set['darts2']; ?></td>
+                                <!--end-->
                                 <td><?php echo $set['3da2']; ?></td>
                                 <td><?php echo $set['dblattempts2']; ?></td>
                                 <td><?php echo $set['highscore2']; ?></td>
@@ -531,6 +545,9 @@ function getPhaseLabel($phase) {
                                 <tr>
                                     <th>Player</th>
                                     <th>Legs Won</th>
+                                    <!--Added manually-->
+                                    <th>Total Darts</th>
+                                    <!--end-->
                                     <th>Avg</th>
                                     <th>Double Att.</th>
                                     <th>Highscore</th>
@@ -539,6 +556,9 @@ function getPhaseLabel($phase) {
                                 <tr>
                                     <td><?php echo getPlayerName($match['player1id']); ?></td>
                                     <td><input type="number" name="legs1" min="0" max="<?php echo $match['firsttolegs']; ?>" value="0" required style="width: 60px;"></td>
+                                    <!--Added manually-->
+                                    <td><input type="number" name="darts1" min="0" value="0" required style="width: 60px;"></td>
+                                    <!--end-->
                                     <td><input type="number" name="3da1" min="0" max="180" step="0.01" value="0" required style="width: 70px;"></td>
                                     <td><input type="number" name="dblattempts1" min="0" value="0" required style="width: 60px;"></td>
                                     <td><input type="number" name="highscore1" min="0" max="180" value="0" required style="width: 60px;"></td>
@@ -547,6 +567,9 @@ function getPhaseLabel($phase) {
                                 <tr>
                                     <td><?php echo getPlayerName($match['player2id']); ?></td>
                                     <td><input type="number" name="legs2" min="0" max="<?php echo $match['firsttolegs']; ?>" value="0" required style="width: 60px;"></td>
+                                    <!--Added manually-->
+                                    <td><input type="number" name="darts2" min="0" value="0" required style="width: 60px;"></td>
+                                    <!--end-->
                                     <td><input type="number" name="3da2" min="0" max="180" step="0.01" value="0" required style="width: 70px;"></td>
                                     <td><input type="number" name="dblattempts2" min="0" value="0" required style="width: 60px;"></td>
                                     <td><input type="number" name="highscore2" min="0" max="180" value="0" required style="width: 60px;"></td>
@@ -884,6 +907,9 @@ function getPhaseLabel($phase) {
                                     <th>Set</th>
                                     <th>Player</th>
                                     <th>Legs</th>
+                                    <!--Added manually-->
+                                    <th>Total Darts</th>
+                                    <!--end-->
                                     <th>Avg</th>
                                     <th>Double Att.</th>
                                     <th>High Score</th>
@@ -898,6 +924,9 @@ function getPhaseLabel($phase) {
                                     <td rowspan="2"><?php echo $set_num; ?></td>
                                     <td><?php echo getPlayerName($match['player1id']); ?></td>
                                     <td><?php echo $set['legs1']; ?></td>
+                                    <!--Added manually-->
+                                    <td><?php echo $set['darts1']; ?></td>
+                                    <!--end-->
                                     <td><?php echo $set['3da1']; ?></td>
                                     <td><?php echo $set['dblattempts1']; ?></td>
                                     <td><?php echo $set['highscore1']; ?></td>
@@ -914,6 +943,9 @@ function getPhaseLabel($phase) {
                                 <tr>
                                     <td><?php echo getPlayerName($match['player2id']); ?></td>
                                     <td><?php echo $set['legs2']; ?></td>
+                                    <!--Added manually-->
+                                    <td><?php echo $set['darts2']; ?></td>
+                                    <!--end-->
                                     <td><?php echo $set['3da2']; ?></td>
                                     <td><?php echo $set['dblattempts2']; ?></td>
                                     <td><?php echo $set['highscore2']; ?></td>
@@ -936,6 +968,9 @@ function getPhaseLabel($phase) {
                                     <tr>
                                         <th>Player</th>
                                         <th>Legs Won</th>
+                                        <!--Added manually-->
+                                        <th>Total Darts</th>
+                                        <!--end-->
                                         <th>Avg</th>
                                         <th>Double Att.</th>
                                         <th>Highscore</th>
@@ -944,6 +979,9 @@ function getPhaseLabel($phase) {
                                     <tr>
                                         <td><?php echo getPlayerName($match['player1id']); ?></td>
                                         <td><input type="number" name="legs1" min="0" max="<?php echo $match['firsttolegs']; ?>" value="0" required style="width: 60px;"></td>
+                                        <!--Added manually-->
+                                        <td><input type="number" name="darts1" min="0" value="0" required style="width: 60px;"></td>
+                                        <!--end-->
                                         <td><input type="number" name="3da1" min="0" max="180" step="0.01" value="0" required style="width: 70px;"></td>
                                         <td><input type="number" name="dblattempts1" min="0" value="0" required style="width: 60px;"></td>
                                         <td><input type="number" name="highscore1" min="0" max="180" value="0" required style="width: 60px;"></td>
@@ -952,6 +990,9 @@ function getPhaseLabel($phase) {
                                     <tr>
                                         <td><?php echo getPlayerName($match['player2id']); ?></td>
                                         <td><input type="number" name="legs2" min="0" max="<?php echo $match['firsttolegs']; ?>" value="0" required style="width: 60px;"></td>
+                                        <!--Added manually-->
+                                        <td><input type="number" name="darts2" min="0" value="0" required style="width: 60px;"></td>
+                                        <!--end-->
                                         <td><input type="number" name="3da2" min="0" max="180" step="0.01" value="0" required style="width: 70px;"></td>
                                         <td><input type="number" name="dblattempts2" min="0" value="0" required style="width: 60px;"></td>
                                         <td><input type="number" name="highscore2" min="0" max="180" value="0" required style="width: 60px;"></td>
