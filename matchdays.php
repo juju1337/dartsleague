@@ -299,7 +299,7 @@ function getPhaseLabel($phase) {
                     <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>">Match #<?php echo $match['id']; ?></th>
                 </tr>
                 <tr>
-                    <th>Player</th>
+                    <th class="player-name">Player</th>
                     <?php if ($show_sets): ?>
                         <th>Sets</th>
                         <?php for ($i = 1; $i <= count($sets_data); $i++): ?>
@@ -312,7 +312,7 @@ function getPhaseLabel($phase) {
                     <th>Dbl%</th>
                 </tr>
                 <tr>
-                    <td><?php echo getPlayerName($match['player1id']); ?></td>
+                    <td  class="player-name"><?php echo getPlayerName($match['player1id']); ?></td>
                     <?php if ($show_sets): ?>
                         <td><strong><?php echo $match['sets1']; ?></strong></td>
                         <?php foreach ($sets_data as $set): ?>
@@ -325,7 +325,7 @@ function getPhaseLabel($phase) {
                     <td><?php echo $p1_dbl; ?></td>
                 </tr>
                 <tr>
-                    <td><?php echo getPlayerName($match['player2id']); ?></td>
+                    <td  class="player-name"><?php echo getPlayerName($match['player2id']); ?></td>
                     <?php if ($show_sets): ?>
                         <td><strong><?php echo $match['sets2']; ?></strong></td>
                         <?php foreach ($sets_data as $set): ?>
@@ -575,7 +575,7 @@ function getPhaseLabel($phase) {
                         <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>"><?php echo getPhaseLabel($match['phase']); ?></th>
                     </tr>
                     <tr>
-                        <th>Player</th>
+                        <th class="player-name">Player</th>
                         <?php if ($show_sets): ?>
                             <th>Sets</th>
                             <?php for ($i = 1; $i <= count($sets_data); $i++): ?>
@@ -588,7 +588,7 @@ function getPhaseLabel($phase) {
                         <th>Dbl%</th>
                     </tr>
                     <tr>
-                        <td><?php echo getPlayerName($match['player1id']); ?></td>
+                        <td class="player-name"><?php echo getPlayerName($match['player1id']); ?></td>
                         <?php if ($show_sets): ?>
                             <td><strong><?php echo $match['sets1']; ?></strong></td>
                             <?php foreach ($sets_data as $set): ?>
@@ -601,7 +601,7 @@ function getPhaseLabel($phase) {
                         <td><?php echo $p1_dbl; ?></td>
                     </tr>
                     <tr>
-                        <td><?php echo getPlayerName($match['player2id']); ?></td>
+                        <td class="player-name"><?php echo getPlayerName($match['player2id']); ?></td>
                         <?php if ($show_sets): ?>
                             <td><strong><?php echo $match['sets2']; ?></strong></td>
                             <?php foreach ($sets_data as $set): ?>

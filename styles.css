@@ -28,6 +28,14 @@ th, td {
     text-align: left;
 }
 
+td:first-child {
+    white-space: nowrap;
+}
+
+td.player-name, th.player-name {
+    width: 400px;
+}
+
 select {
     padding: 5px;
     margin: 5px 0;
