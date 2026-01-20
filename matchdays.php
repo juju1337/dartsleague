@@ -481,8 +481,8 @@ function getPhaseLabel($phase) {
                                 <th>Legs</th>
                                 <th>Avg</th>
                                 <th>Dbl Att.</th>
-                                <th>High Score</th>
-                                <th>High CO</th>
+                                <th>Highscore</th>
+                                <th>Highest CO</th>
                                 <th>Action</th>
                             </tr>
                             <?php 
@@ -531,10 +531,10 @@ function getPhaseLabel($phase) {
                                 <tr>
                                     <th>Player</th>
                                     <th>Legs Won</th>
-                                    <th>3 Dart Avg</th>
+                                    <th>Avg</th>
                                     <th>Dbl Attempts</th>
-                                    <th>High Score</th>
-                                    <th>High CO</th>
+                                    <th>Highscore</th>
+                                    <th>Highest CO</th>
                                 </tr>
                                 <tr>
                                     <td><?php echo getPlayerName($match['player1id']); ?></td>
@@ -936,10 +936,10 @@ function getPhaseLabel($phase) {
                                     <tr>
                                         <th>Player</th>
                                         <th>Legs Won</th>
-                                        <th>3 Dart Avg</th>
+                                        <th>Avg</th>
                                         <th>Dbl Attempts</th>
-                                        <th>High Score</th>
-                                        <th>High CO</th>
+                                        <th>Highscore</th>
+                                        <th>Highest CO</th>
                                     </tr>
                                     <tr>
                                         <td><?php echo getPlayerName($match['player1id']); ?></td>
