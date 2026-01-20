@@ -1107,7 +1107,7 @@ function getPhaseLabel($phase) {
                     <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>Edit Player Assignments</button></a>
                 <?php endif; ?>
             <?php endif; ?>
-        
+        <?php endif; ?>
         <p><a href="matchdays.php"><button type="button">Back to All Matchdays</button></a></p>
         
     <?php else: ?>
@@ -1137,7 +1137,6 @@ function getPhaseLabel($phase) {
             </tr>
             <?php endforeach; ?>
         </table>
-    <?php endif; ?>
     <?php endif; ?>
     
     <p>
