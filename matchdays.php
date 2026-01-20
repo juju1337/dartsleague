@@ -480,7 +480,7 @@ function getPhaseLabel($phase) {
                                 <th>Player</th>
                                 <th>Legs</th>
                                 <th>Avg</th>
-                                <th>Dbl Att.</th>
+                                <th>Double Att.</th>
                                 <th>Highscore</th>
                                 <th>Highest CO</th>
                                 <th>Action</th>
@@ -532,7 +532,7 @@ function getPhaseLabel($phase) {
                                     <th>Player</th>
                                     <th>Legs Won</th>
                                     <th>Avg</th>
-                                    <th>Dbl Attempts</th>
+                                    <th>Double Att.</th>
                                     <th>Highscore</th>
                                     <th>Highest CO</th>
                                 </tr>
@@ -885,7 +885,7 @@ function getPhaseLabel($phase) {
                                     <th>Player</th>
                                     <th>Legs</th>
                                     <th>Avg</th>
-                                    <th>Dbl Att.</th>
+                                    <th>Double Att.</th>
                                     <th>High Score</th>
                                     <th>High CO</th>
                                     <th>Action</th>
@@ -937,7 +937,7 @@ function getPhaseLabel($phase) {
                                         <th>Player</th>
                                         <th>Legs Won</th>
                                         <th>Avg</th>
-                                        <th>Dbl Attempts</th>
+                                        <th>Double Att.</th>
                                         <th>Highscore</th>
                                         <th>Highest CO</th>
                                     </tr>
