@@ -459,9 +459,16 @@ function getPlayerName($player_id) {
         </div>
     <?php endif; ?>
     
+    <hr style="margin-top: 40px;">
     <p>
-        <a href="players.php">Back to Player Management</a> | 
-        <a href="index.php">Home</a>
-    </p>
+        <a href="index.php">Home</a> | 
+        <a href="matchdays.php">Matches Overview</a>
+        <?php if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']): ?>
+            | <a href="players.php">Player Management</a>
+            | <a href="matchday_setup.php">Tournament Setup</a>
+            | <a href="index.php?logout=1">Logout</a>
+        <?php else: ?>
+            | <a href="index.php#login">Login</a>
+        <?php endif; ?>
 </body>
 </html>
