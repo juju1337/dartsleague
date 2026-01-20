@@ -622,6 +622,8 @@ function getPhaseLabel($phase) {
                         fclose($fp);
                     }
                     
+                    //FIX HERE
+                    
                     $p1_3da = ($p1_stats['total_legs'] > 0) ? round(($p1_stats['total_darts'] / $p1_stats['total_legs']) * 3, 2) : '-';
                     $p2_3da = ($p2_stats['total_legs'] > 0) ? round(($p2_stats['total_darts'] / $p2_stats['total_legs']) * 3, 2) : '-';
                     $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
@@ -742,6 +744,7 @@ function getPhaseLabel($phase) {
                                 $standings[$p2id]['legs_for'] += $legs2;
                                 $standings[$p2id]['legs_against'] += $legs1;
                                 
+                                //FIX HERE
                                 // Calculate 3DA (only if darts > 0)
                                 if ($darts1 > 0) {
                                     $standings[$p1id]['total_darts'] += $darts1;
@@ -1045,6 +1048,7 @@ function getPhaseLabel($phase) {
                             fclose($fp);
                         }
                         
+                        //FIX HERE
                         $p1_3da = ($p1_stats['total_legs'] > 0) ? round(($p1_stats['total_darts'] / $p1_stats['total_legs']) * 3, 2) : '-';
                         $p2_3da = ($p2_stats['total_legs'] > 0) ? round(($p2_stats['total_darts'] / $p2_stats['total_legs']) * 3, 2) : '-';
                         $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
