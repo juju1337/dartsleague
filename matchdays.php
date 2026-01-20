@@ -431,7 +431,7 @@ function getPhaseLabel($phase) {
         <h2>Matchday <?php echo $md['id']; ?></h2>
         <p>
             <strong>Date:</strong> <?php echo $md['date'] ? $md['date'] : 'Not set'; ?> | 
-            <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?> |
+            <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?>
             <?php if ($is_admin): ?>
                 | <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
             <?php endif; ?>
