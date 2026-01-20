@@ -155,7 +155,7 @@ function getPlayerName($player_id) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Darts League - Tournament Overview</title>
+    <title>Tournament Overview</title>
     <link rel="stylesheet" href="styles.css">
     <!--<style>
         body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; }
