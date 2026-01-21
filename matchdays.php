@@ -578,7 +578,7 @@ function getPhaseLabel($phase) {
                             </table>
                             
                             <input type="submit" name="add_set" value="Add Set">
-                            <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button type="button">Done</button></a>
+                            <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button type="button">Cancel</button></a>
                         </form>
                     <?php else: ?>
                         <div class="info">Match is complete!</div>
