@@ -273,14 +273,9 @@ function addSet($data) {
     
     $set_id = getNextSetId();
     
-    // Calculate 3DA from entered values
+    // Get 3DA from entered values
     $da1 = floatval($data['3da1']);
     $da2 = floatval($data['3da2']);
-    
-    /* Calculate darts thrown from 3DA and legs
-    $darts1 = ($da1 > 0) ? round(($da1 * $legs1) / 3) : 0;
-    $darts2 = ($da2 > 0) ? round(($da2 * $legs2) / 3) : 0;
-    */
     
     $darts1 = floatval($data['darts1']);
     $darts2 = floatval($data['darts2']);
@@ -590,42 +585,48 @@ function getPhaseLabel($phase) {
                     // Show match summary
                     // Get detailed stats from sets.csv
                     $sets_data = [];
-                    $p1_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                    $p2_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
+                    $p1_stats = ['total_legs' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0, '3da_weighted' => 0];
+                    $p2_stats = ['total_legs' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0, '3da_weighted' => 0];
                     
                     $sets_file = 'tables/sets.csv';
-                    if (!empty($sets_file) &&  file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
+                    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
                         $header = fgetcsv($fp);
                         while (($row = fgetcsv($fp)) !== false) {
                             if ($row[1] == $match['id']) { // matchid
+                                $legs1 = intval($row[4]);
+                                $legs2 = intval($row[5]);
+                                $total_legs_in_set = $legs1 + $legs2;
+                                
                                 $sets_data[] = [
-                                    'legs1' => intval($row[4]),
-                                    'legs2' => intval($row[5]),
+                                    'legs1' => $legs1,
+                                    'legs2' => $legs2,
                                     'darts1' => intval($row[6]),
                                     'darts2' => intval($row[7]),
                                     'dblattempts1' => intval($row[10]),
                                     'dblattempts2' => intval($row[11])
                                 ];
                                 
-                                $p1_stats['total_legs'] += intval($row[4]);
-                                $p2_stats['total_legs'] += intval($row[5]);
-                                $p1_stats['total_darts'] += intval($row[6]);
-                                $p2_stats['total_darts'] += intval($row[7]);
+                                // Both players played all legs in the set
+                                $p1_stats['total_legs'] += $total_legs_in_set;
+                                $p2_stats['total_legs'] += $total_legs_in_set;
+                                
                                 $p1_stats['dbl_attempts'] += intval($row[10]);
                                 $p2_stats['dbl_attempts'] += intval($row[11]);
                                 
+                                // Weighted 3DA calculation - each player's 3DA weighted by total legs in set
+                                $p1_stats['3da_weighted'] += floatval($row[8]) * $total_legs_in_set; // 3da1 * total legs
+                                $p2_stats['3da_weighted'] += floatval($row[9]) * $total_legs_in_set; // 3da2 * total legs
+                                
                                 // Count successful doubles (= legs won)
-                                $p1_stats['dbl_hit'] += intval($row[4]);
-                                $p2_stats['dbl_hit'] += intval($row[5]);
+                                $p1_stats['dbl_hit'] += $legs1;
+                                $p2_stats['dbl_hit'] += $legs2;
                             }
                         }
                         fclose($fp);
                     }
                     
-                    //FIX HERE
-                    
-                    $p1_3da = ($p1_stats['total_legs'] > 0) ? round(($p1_stats['total_darts'] / $p1_stats['total_legs']) * 3, 2) : '-';
-                    $p2_3da = ($p2_stats['total_legs'] > 0) ? round(($p2_stats['total_darts'] / $p2_stats['total_legs']) * 3, 2) : '-';
+                    $p1_3da = ($p1_stats['total_legs'] > 0) ? round($p1_stats['3da_weighted'] / $p1_stats['total_legs'], 2) : '-';
+                    $p2_3da = ($p2_stats['total_legs'] > 0) ? round($p2_stats['3da_weighted'] / $p2_stats['total_legs'], 2) : '-';
                     $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
                     $p2_dbl = ($p2_stats['dbl_attempts'] > 0) ? round(($p2_stats['dbl_hit'] / $p2_stats['dbl_attempts']) * 100, 1) . '%' : '-';
                     
@@ -743,17 +744,21 @@ function getPhaseLabel($phase) {
                                 $standings[$p1id]['legs_against'] += $legs2;
                                 $standings[$p2id]['legs_for'] += $legs2;
                                 $standings[$p2id]['legs_against'] += $legs1;
+
+                                // Weighted 3DA calculation
+                                $da1 = floatval($row[8]); // 3da1 from sets.csv
+                                $da2 = floatval($row[9]); // 3da2 from sets.csv
+                                $total_legs_in_set = $legs1 + $legs2;
                                 
-                                //FIX HERE
-                                // Calculate 3DA (only if darts > 0)
-                                if ($darts1 > 0) {
-                                    $standings[$p1id]['total_darts'] += $darts1;
-                                    $standings[$p1id]['total_legs'] += $legs1;
+                                if ($da1 > 0) {
+                                    $standings[$p1id]['total_darts'] += $da1 * $total_legs_in_set;
+                                    $standings[$p1id]['total_legs'] += $total_legs_in_set;
                                 }
-                                if ($darts2 > 0) {
-                                    $standings[$p2id]['total_darts'] += $darts2;
-                                    $standings[$p2id]['total_legs'] += $legs2;
+                                if ($da2 > 0) {
+                                    $standings[$p2id]['total_darts'] += $da2 * $total_legs_in_set;
+                                    $standings[$p2id]['total_legs'] += $total_legs_in_set;
                                 }
+
                             }
                         }
                         fclose($fp);
@@ -791,7 +796,8 @@ function getPhaseLabel($phase) {
                 <?php 
                 $pos = 1;
                 foreach ($standings as $s): 
-                    $three_da = ($s['total_legs'] > 0) ? round(($s['total_darts'] / $s['total_legs']) * 3, 2) : '-';
+                    $three_da = ($s['total_legs'] > 0) ? round($s['total_darts'] / $s['total_legs'], 2) : '-';
+                    //$three_da = ($s['total_legs'] > 0) ? round(($s['total_darts'] / $s['total_legs']) * 3, 2) : '-';
                 ?>
                 <tr>
                     <td><?php echo $pos++; ?></td>
@@ -1016,44 +1022,54 @@ function getPhaseLabel($phase) {
                         // Show match summary
                         // Get detailed stats from sets.csv
                         $sets_data = [];
-                        $p1_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                        $p2_stats = ['total_legs' => 0, 'total_darts' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0];
-                        
-                        $sets_file = 'tables/sets.csv';
-                        if (!empty($sets_file) &&  file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                            $header = fgetcsv($fp);
-                            while (($row = fgetcsv($fp)) !== false) {
-                                if ($row[1] == $match['id']) { // matchid
-                                    $sets_data[] = [
-                                        'legs1' => intval($row[4]),
-                                        'legs2' => intval($row[5]),
-                                        'darts1' => intval($row[6]),
-                                        'darts2' => intval($row[7]),
-                                        'dblattempts1' => intval($row[10]),
-                                        'dblattempts2' => intval($row[11])
-                                    ];
-                                    
-                                    $p1_stats['total_legs'] += intval($row[4]);
-                                    $p2_stats['total_legs'] += intval($row[5]);
-                                    $p1_stats['total_darts'] += intval($row[6]);
-                                    $p2_stats['total_darts'] += intval($row[7]);
-                                    $p1_stats['dbl_attempts'] += intval($row[10]);
-                                    $p2_stats['dbl_attempts'] += intval($row[11]);
-                                    
-                                    // Count successful doubles (= legs won)
-                                    $p1_stats['dbl_hit'] += intval($row[4]);
-                                    $p2_stats['dbl_hit'] += intval($row[5]);
-                                }
+                    $p1_stats = ['total_legs' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0, '3da_weighted' => 0];
+                    $p2_stats = ['total_legs' => 0, 'dbl_attempts' => 0, 'dbl_hit' => 0, '3da_weighted' => 0];
+                    
+                    $sets_file = 'tables/sets.csv';
+                    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
+                        $header = fgetcsv($fp);
+                        while (($row = fgetcsv($fp)) !== false) {
+                            if ($row[1] == $match['id']) { // matchid
+                                $legs1 = intval($row[4]);
+                                $legs2 = intval($row[5]);
+                                $total_legs_in_set = $legs1 + $legs2;
+                                
+                                $sets_data[] = [
+                                    'legs1' => $legs1,
+                                    'legs2' => $legs2,
+                                    'darts1' => intval($row[6]),
+                                    'darts2' => intval($row[7]),
+                                    'dblattempts1' => intval($row[10]),
+                                    'dblattempts2' => intval($row[11])
+                                ];
+                                
+                                // Both players played all legs in the set
+                                $p1_stats['total_legs'] += $total_legs_in_set;
+                                $p2_stats['total_legs'] += $total_legs_in_set;
+                                
+                                $p1_stats['dbl_attempts'] += intval($row[10]);
+                                $p2_stats['dbl_attempts'] += intval($row[11]);
+                                
+                                // Weighted 3DA calculation - each player's 3DA weighted by total legs in set
+                                $p1_stats['3da_weighted'] += floatval($row[8]) * $total_legs_in_set; // 3da1 * total legs
+                                $p2_stats['3da_weighted'] += floatval($row[9]) * $total_legs_in_set; // 3da2 * total legs
+                                
+                                // Count successful doubles (= legs won)
+                                $p1_stats['dbl_hit'] += $legs1;
+                                $p2_stats['dbl_hit'] += $legs2;
                             }
-                            fclose($fp);
                         }
-                        
-                        //FIX HERE
-                        $p1_3da = ($p1_stats['total_legs'] > 0) ? round(($p1_stats['total_darts'] / $p1_stats['total_legs']) * 3, 2) : '-';
-                        $p2_3da = ($p2_stats['total_legs'] > 0) ? round(($p2_stats['total_darts'] / $p2_stats['total_legs']) * 3, 2) : '-';
-                        $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
-                        $p2_dbl = ($p2_stats['dbl_attempts'] > 0) ? round(($p2_stats['dbl_hit'] / $p2_stats['dbl_attempts']) * 100, 1) . '%' : '-';
-                    ?>
+                        fclose($fp);
+                    }
+                    
+                    $p1_3da = ($p1_stats['total_legs'] > 0) ? round($p1_stats['3da_weighted'] / $p1_stats['total_legs'], 2) : '-';
+                    $p2_3da = ($p2_stats['total_legs'] > 0) ? round($p2_stats['3da_weighted'] / $p2_stats['total_legs'], 2) : '-';
+                    $p1_dbl = ($p1_stats['dbl_attempts'] > 0) ? round(($p1_stats['dbl_hit'] / $p1_stats['dbl_attempts']) * 100, 1) . '%' : '-';
+                    $p2_dbl = ($p2_stats['dbl_attempts'] > 0) ? round(($p2_stats['dbl_hit'] / $p2_stats['dbl_attempts']) * 100, 1) . '%' : '-';
+                    
+                    $show_sets = intval($first_match['firsttosets']) > 1;
+
+                    ?> 
                     
                     <table style="margin-bottom: 20px;">
                         <tr>
