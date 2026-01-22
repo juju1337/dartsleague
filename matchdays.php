@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $_SESSION['error'] = $result['message'];
         }
-        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id']);
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id'] . '#match' . $_POST['match_id']);
         exit;
     }
     
@@ -515,7 +515,7 @@ function getPhaseLabel($phase) {
                     $match_won = ($sets_won_p1 >= intval($match['firsttosets']) || $sets_won_p2 >= intval($match['firsttosets']));
                 ?>
                 
-                <div class="section">
+                <div class="section" id="match<?php echo $match['id']; ?>">
                     <h4>Match #<?php echo $match['id']; ?> - Score Entry</h4>
                     
                     <?php if (isset($_SESSION['error'])): ?>
@@ -695,7 +695,8 @@ function getPhaseLabel($phase) {
                         <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>">
                             Match #<?php echo $match['id']; ?>
                             <?php if ($is_admin): ?>
-                                <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>" style="float: right;"><button type="button">Enter/Edit Scores</button></a>
+                                <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>#match<?php echo $match['id']; ?>" style="float: right;"><button type="button">Enter/Edit Scores</button></a>
+
                             <?php endif; ?>
                         </th>
                     </tr>
@@ -901,7 +902,7 @@ function getPhaseLabel($phase) {
             }
             ?>
             
-<?php 
+        <?php 
             // Check which playoffs need player assignment
             $semis_unassigned = false;
             $finals_unassigned = false;
@@ -1053,7 +1054,7 @@ function getPhaseLabel($phase) {
                         $match_won = ($sets_won_p1 >= intval($match['firsttosets']) || $sets_won_p2 >= intval($match['firsttosets']));
                     ?>
                     
-                    <div class="section">
+                    <div class="section"  id="match<?php echo $match['id']; ?>">
                         <h4><?php echo getPhaseLabel($match['phase']); ?> - Score Entry</h4>
                         
                         <?php if (isset($_SESSION['error'])): ?>
@@ -1234,7 +1235,7 @@ function getPhaseLabel($phase) {
                             <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>">
                                 <?php echo getPhaseLabel($match['phase']); ?>
                                 <?php if ($is_admin): ?>
-                                    <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>" style="float: right;"><button type="button">Enter/Edit Scores</button></a>
+                                    <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>#match<?php echo $match['id']; ?>" style="float: right;"><button type="button">Enter/Edit Scores</button></a>
                                 <?php endif; ?>
                             </th>
                         </tr>
@@ -1375,8 +1376,6 @@ function getPhaseLabel($phase) {
                             <input type="submit" name="auto_assign_finals" value="Start Finals">
                         </form>
                     <?php endif; ?>
-                <?php endif; ?>
-                
                 <?php endif; ?>
                 
                 <!-- MATCHDAY OVERALL STANDINGS -->
