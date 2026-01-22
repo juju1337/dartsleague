@@ -373,20 +373,6 @@ function getPhaseLabel($phase) {
 <head>
     <title>Matchday Management</title>
     <link rel="stylesheet" href="styles.css">
-    <!--<style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .group-phase { background-color: #f9f9f9; }
-        .playoff-phase { background-color: #fff3e0; }
-        input[type="text"], input[type="date"], select { padding: 5px; margin: 5px 0; }
-        input[type="submit"], button { padding: 8px 15px; margin: 5px; }
-        .info { background-color: #e7f3ff; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; }
-        .warning { background-color: #fff3cd; padding: 10px; margin: 10px 0; border-left: 4px solid #ffc107; }
-        .section { margin: 30px 0; padding: 15px; border: 1px solid #ddd; background-color: #fafafa; }
-        .match-format { font-size: 0.9em; color: #666; }
-    </style>-->
 </head>
 <body>
     <h1>Matchday Management</h1>

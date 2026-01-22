@@ -126,15 +126,6 @@ function deletePlayer($id) {
 <head>
     <title>Player Management</title>
     <link rel="stylesheet" href="styles.css">   
-    <!--<style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        input[type="text"] { padding: 5px; margin: 5px 0; }
-        input[type="submit"], button { padding: 5px 10px; margin: 5px 5px 5px 0; }
-        .form-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; }
-    </style>-->
 </head>
 <body>
     <h1>Player Management</h1>

@@ -157,23 +157,6 @@ function getPlayerName($player_id) {
 <head>
     <title>Tournament Overview</title>
     <link rel="stylesheet" href="styles.css">
-    <!--<style>
-        body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; }
-        h1 { color: #333; }
-        .admin-panel { background-color: #f0f0f0; padding: 15px; margin: 20px 0; border-left: 4px solid #333; }
-        .login-box { background-color: #fff; padding: 20px; margin: 20px 0; border: 1px solid #ddd; max-width: 400px; }
-        .info { background-color: #e7f3ff; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; }
-        .warning { background-color: #fff3cd; padding: 10px; margin: 10px 0; border-left: 4px solid #ffc107; }
-        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        input[type="password"] { padding: 8px; margin: 5px 0; width: 200px; }
-        input[type="submit"], button { padding: 8px 15px; margin: 5px; }
-        .format-box { background-color: #f9f9f9; padding: 10px; margin: 5px 0; border-left: 3px solid #4CAF50; }
-        .section { margin: 30px 0; }
-        a { text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>-->
 </head>
 <body>
     <h1>Tournament Overview</h1>
