@@ -170,22 +170,106 @@ function generateTournament($config) {
 function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, $group_sets, $group_legs, $has_playoffs, $playoff_sets, $playoff_legs, $has_third, $different_final, $final_sets, $final_legs) {
     
     // Generate group phase matches
+    $all_group_matches = [];
+    
     for ($round = 1; $round <= intval($group_rounds); $round++) {
         for ($i = 0; $i < count($players); $i++) {
             for ($j = $i + 1; $j < count($players); $j++) {
-                fputcsv($fp, [
-                    $match_id++,
-                    $day,
-                    'group',
-                    $group_sets,
-                    $group_legs,
-                    $players[$i]['id'],
-                    $players[$j]['id'],
-                    0,
-                    0
-                ]);
+                $all_group_matches[] = [
+                    'player1' => $players[$i]['id'],
+                    'player2' => $players[$j]['id']
+                ];
             }
         }
+    }
+    
+    // Reorder matches to ensure no player plays more than twice in a row
+    $ordered_matches = [];
+    $player_consecutive_count = [];
+    
+    while (!empty($all_group_matches)) {
+        $placed = false;
+        $best_match = null;
+        $best_key = null;
+        $best_score = -1;
+        
+        foreach ($all_group_matches as $key => $match) {
+            $p1 = $match['player1'];
+            $p2 = $match['player2'];
+            
+            // Get consecutive play count for both players
+            $p1_consecutive = isset($player_consecutive_count[$p1]) ? $player_consecutive_count[$p1] : 0;
+            $p2_consecutive = isset($player_consecutive_count[$p2]) ? $player_consecutive_count[$p2] : 0;
+            
+            // Skip if either player has already played twice consecutively
+            if ($p1_consecutive >= 2 || $p2_consecutive >= 2) {
+                continue;
+            }
+            
+            // Score this match (prefer players who haven't played recently)
+            $score = (10 - $p1_consecutive) + (10 - $p2_consecutive);
+            
+            if ($score > $best_score) {
+                $best_score = $score;
+                $best_match = $match;
+                $best_key = $key;
+            }
+        }
+        
+        // If we found a valid match, place it
+        if ($best_match !== null) {
+            $ordered_matches[] = $best_match;
+            
+            // Update consecutive counts for ALL players
+            $new_consecutive_count = [];
+            foreach ($players as $player) {
+                $pid = $player['id'];
+                if ($pid == $best_match['player1'] || $pid == $best_match['player2']) {
+                    // Players in this match: increment their count
+                    $new_consecutive_count[$pid] = (isset($player_consecutive_count[$pid]) ? $player_consecutive_count[$pid] : 0) + 1;
+                } else {
+                    // Players NOT in this match: reset to 0
+                    $new_consecutive_count[$pid] = 0;
+                }
+            }
+            $player_consecutive_count = $new_consecutive_count;
+            
+            unset($all_group_matches[$best_key]);
+            $all_group_matches = array_values($all_group_matches); // Re-index
+            $placed = true;
+        } else {
+            // No valid match found - reset all counters and try again
+            $player_consecutive_count = [];
+            
+            // Take first available match
+            if (!empty($all_group_matches)) {
+                $match = array_shift($all_group_matches);
+                $ordered_matches[] = $match;
+                foreach ($players as $player) {
+                    $pid = $player['id'];
+                    if ($pid == $match['player1'] || $pid == $match['player2']) {
+                        $player_consecutive_count[$pid] = 1;
+                    } else {
+                        $player_consecutive_count[$pid] = 0;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Write ordered matches to CSV
+    foreach ($ordered_matches as $match) {
+        fputcsv($fp, [
+            $match_id++,
+            $day,
+            'group',
+            $group_sets,
+            $group_legs,
+            $match['player1'],
+            $match['player2'],
+            0,
+            0
+        ]);
     }
     
     // Generate playoff matches if enabled
