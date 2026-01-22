@@ -78,6 +78,33 @@ function generateTournament($config) {
         fclose($fp);
     }
     
+    // Save scoring scheme
+    $scoring_file = 'tables/scoringscheme.csv';
+    $fp_score = fopen($scoring_file, 'w');
+    fputcsv($fp_score, ['stat', 'rank', 'points']);
+    
+    // Group phase positions
+    fputcsv($fp_score, ['pos_group_phase', '1', $config['score_group_1']]);
+    fputcsv($fp_score, ['pos_group_phase', '2', $config['score_group_2']]);
+    fputcsv($fp_score, ['pos_group_phase', '3', $config['score_group_3']]);
+    fputcsv($fp_score, ['pos_group_phase', '4', $config['score_group_4']]);
+    
+    // Final positions
+    fputcsv($fp_score, ['pos_final', '1', $config['score_final_1']]);
+    fputcsv($fp_score, ['pos_final', '2', $config['score_final_2']]);
+    fputcsv($fp_score, ['pos_final', '3', $config['score_final_3']]);
+    fputcsv($fp_score, ['pos_final', '4', $config['score_final_4']]);
+    
+    // Best statistics
+    fputcsv($fp_score, ['best_3da', '1', $config['score_best_3da']]);
+    fputcsv($fp_score, ['best_dbl', '1', $config['score_best_dbl']]);
+    fputcsv($fp_score, ['best_hs', '1', $config['score_best_hs']]);
+    fputcsv($fp_score, ['best_hco', '1', $config['score_best_hco']]);
+    
+    fclose($fp_score);
+    
+    $all_players = loadPlayers();
+    
     if (file_exists($matches_file)) {
         $fp = fopen($matches_file, 'w');
         fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
@@ -523,6 +550,83 @@ function getPlayerName($player_id) {
                         </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="form-section">
+                <h2>Scoring Scheme</h2>
+                <p>Define how points are awarded for each matchday:</p>
+                
+                <h3>Group Phase Positions</h3>
+                <table>
+                    <tr>
+                        <th>Position</th>
+                        <th>Points</th>
+                    </tr>
+                    <tr>
+                        <td>1st Place</td>
+                        <td><input type="number" name="score_group_1" min="0" value="5" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>2nd Place</td>
+                        <td><input type="number" name="score_group_2" min="0" value="3" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>3rd Place</td>
+                        <td><input type="number" name="score_group_3" min="0" value="1" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>4th Place</td>
+                        <td><input type="number" name="score_group_4" min="0" value="0" required style="width: 60px;"></td>
+                    </tr>
+                </table>
+                
+                <h3>Final Positions (After Playoffs)</h3>
+                <table>
+                    <tr>
+                        <th>Position</th>
+                        <th>Points</th>
+                    </tr>
+                    <tr>
+                        <td>Winner (1st)</td>
+                        <td><input type="number" name="score_final_1" min="0" value="10" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Runner-up (2nd)</td>
+                        <td><input type="number" name="score_final_2" min="0" value="7" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>3rd Place</td>
+                        <td><input type="number" name="score_final_3" min="0" value="5" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>4th Place</td>
+                        <td><input type="number" name="score_final_4" min="0" value="3" required style="width: 60px;"></td>
+                    </tr>
+                </table>
+                
+                <h3>Best Statistics Bonuses</h3>
+                <table>
+                    <tr>
+                        <th>Statistic</th>
+                        <th>Bonus Points</th>
+                    </tr>
+                    <tr>
+                        <td>Highest 3 Dart Average</td>
+                        <td><input type="number" name="score_best_3da" min="0" value="1" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Highest Double %</td>
+                        <td><input type="number" name="score_best_dbl" min="0" value="1" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Highest Score (180, etc.)</td>
+                        <td><input type="number" name="score_best_hs" min="0" value="2" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Highest Checkout</td>
+                        <td><input type="number" name="score_best_hco" min="0" value="2" required style="width: 60px;"></td>
+                    </tr>
+                </table>
             </div>
             
             <input type="submit" name="generate_tournament" value="Generate Tournament" onclick="return confirm('This will create all matchdays and matches. Continue?');">

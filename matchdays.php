@@ -1377,6 +1377,197 @@ function getPhaseLabel($phase) {
                     <?php endif; ?>
                 <?php endif; ?>
                 
+                <?php endif; ?>
+                
+                <!-- MATCHDAY OVERALL STANDINGS -->
+                <?php 
+                // Check if ALL matches are complete
+                $all_matchday_complete = true;
+                $all_matchday_matches = array_merge($group_matches, $playoff_matches);
+                
+                foreach ($all_matchday_matches as $m) {
+                    // Skip unassigned matches
+                    if ($m['player1id'] == 0 || $m['player2id'] == 0) continue;
+                    
+                    // Check if match has results
+                    if ($m['sets1'] == 0 && $m['sets2'] == 0) {
+                        $all_matchday_complete = false;
+                        break;
+                    }
+                }
+                ?>
+                
+                <?php if ($all_matchday_complete): ?>
+                    <h3>Matchday Overall Standings</h3>
+                    <?php
+                    // Calculate overall standings including all matches (group + playoffs)
+                    $overall_standings = [];
+                    
+                    // Initialize for all players
+                    foreach ($players as $player) {
+                        $overall_standings[$player['id']] = [
+                            'id' => $player['id'],
+                            'name' => getPlayerName($player['id']),
+                            'played' => 0,
+                            'won' => 0,
+                            'lost' => 0,
+                            'legs_for' => 0,
+                            'legs_against' => 0,
+                            'total_darts' => 0,
+                            'total_legs' => 0,
+                            'dbl_attempts' => 0,
+                            'dbl_hit' => 0,
+                            'highscore' => 0,
+                            'highco' => 0,
+                            'final_position' => 999
+                        ];
+                    }
+                    
+                    // Process ALL matches (group + playoff)
+                    $all_matchday_matches = array_merge($group_matches, $playoff_matches);
+                    
+                    foreach ($all_matchday_matches as $match) {
+                        // Skip unassigned matches
+                        if ($match['player1id'] == 0 || $match['player2id'] == 0) continue;
+                        
+                        $p1id = $match['player1id'];
+                        $p2id = $match['player2id'];
+                        $sets1 = intval($match['sets1']);
+                        $sets2 = intval($match['sets2']);
+                        
+                        // Only count completed matches
+                        if ($sets1 > 0 || $sets2 > 0) {
+                            $overall_standings[$p1id]['played']++;
+                            $overall_standings[$p2id]['played']++;
+                            
+                            // Determine winner
+                            if ($sets1 > $sets2) {
+                                $overall_standings[$p1id]['won']++;
+                                $overall_standings[$p2id]['lost']++;
+                            } elseif ($sets2 > $sets1) {
+                                $overall_standings[$p2id]['won']++;
+                                $overall_standings[$p1id]['lost']++;
+                            }
+                            
+                            // Get detailed stats from sets.csv
+                            if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
+                                $header = fgetcsv($fp);
+                                while (($row = fgetcsv($fp)) !== false) {
+                                    if ($row[1] == $match['id']) { // matchid
+                                        $legs1 = intval($row[4]);
+                                        $legs2 = intval($row[5]);
+                                        $total_legs_in_set = $legs1 + $legs2;
+                                        
+                                        $overall_standings[$p1id]['legs_for'] += $legs1;
+                                        $overall_standings[$p1id]['legs_against'] += $legs2;
+                                        $overall_standings[$p2id]['legs_for'] += $legs2;
+                                        $overall_standings[$p2id]['legs_against'] += $legs1;
+                                        
+                                        // Weighted 3DA calculation
+                                        $da1 = floatval($row[8]);
+                                        $da2 = floatval($row[9]);
+                                        
+                                        if ($da1 > 0) {
+                                            $overall_standings[$p1id]['total_darts'] += $da1 * $total_legs_in_set;
+                                            $overall_standings[$p1id]['total_legs'] += $total_legs_in_set;
+                                        }
+                                        if ($da2 > 0) {
+                                            $overall_standings[$p2id]['total_darts'] += $da2 * $total_legs_in_set;
+                                            $overall_standings[$p2id]['total_legs'] += $total_legs_in_set;
+                                        }
+                                        
+                                        // Double attempts and hits
+                                        $overall_standings[$p1id]['dbl_attempts'] += intval($row[10]);
+                                        $overall_standings[$p2id]['dbl_attempts'] += intval($row[11]);
+                                        $overall_standings[$p1id]['dbl_hit'] += $legs1;
+                                        $overall_standings[$p2id]['dbl_hit'] += $legs2;
+                                        
+                                        // High scores and checkouts
+                                        $hs1 = intval($row[12]);
+                                        $hs2 = intval($row[13]);
+                                        $hco1 = intval($row[14]);
+                                        $hco2 = intval($row[15]);
+                                        
+                                        if ($hs1 > $overall_standings[$p1id]['highscore']) {
+                                            $overall_standings[$p1id]['highscore'] = $hs1;
+                                        }
+                                        if ($hs2 > $overall_standings[$p2id]['highscore']) {
+                                            $overall_standings[$p2id]['highscore'] = $hs2;
+                                        }
+                                        if ($hco1 > $overall_standings[$p1id]['highco']) {
+                                            $overall_standings[$p1id]['highco'] = $hco1;
+                                        }
+                                        if ($hco2 > $overall_standings[$p2id]['highco']) {
+                                            $overall_standings[$p2id]['highco'] = $hco2;
+                                        }
+                                    }
+                                }
+                                fclose($fp);
+                            }
+                        }
+                    }
+                    
+                    // Determine final positions based on playoff results
+                    foreach ($playoff_matches as $pm) {
+                        if ($pm['sets1'] > 0 || $pm['sets2'] > 0) {
+                            $winner_id = ($pm['sets1'] > $pm['sets2']) ? $pm['player1id'] : $pm['player2id'];
+                            $loser_id = ($pm['sets1'] > $pm['sets2']) ? $pm['player2id'] : $pm['player1id'];
+                            
+                            if ($pm['phase'] == 'final') {
+                                $overall_standings[$winner_id]['final_position'] = 1;
+                                $overall_standings[$loser_id]['final_position'] = 2;
+                            } elseif ($pm['phase'] == 'third') {
+                                $overall_standings[$winner_id]['final_position'] = 3;
+                                $overall_standings[$loser_id]['final_position'] = 4;
+                            }
+                        }
+                    }
+                    
+                    // Sort by final position
+                    usort($overall_standings, function($a, $b) {
+                        return $a['final_position'] - $b['final_position'];
+                    });
+                    ?>
+                    
+                    <table>
+                        <tr>
+                            <th>Pos</th>
+                            <th>Player</th>
+                            <th>Played</th>
+                            <th>Won</th>
+                            <th>Lost</th>
+                            <th>Legs+</th>
+                            <th>Legs-</th>
+                            <th>Leg Diff</th>
+                            <th>3DA</th>
+                            <th>Dbl%</th>
+                            <th>High Score</th>
+                            <th>High CO</th>
+                        </tr>
+                        <?php 
+                        $pos = 1;
+                        foreach ($overall_standings as $s): 
+                            $three_da = ($s['total_legs'] > 0) ? round($s['total_darts'] / $s['total_legs'], 2) : '-';
+                            $dbl_pct = ($s['dbl_attempts'] > 0) ? round(($s['dbl_hit'] / $s['dbl_attempts']) * 100, 1) . '%' : '-';
+                        ?>
+                        <tr>
+                            <td><?php echo $pos++; ?></td>
+                            <td><?php echo $s['name']; ?></td>
+                            <td><?php echo $s['played']; ?></td>
+                            <td><?php echo $s['won']; ?></td>
+                            <td><?php echo $s['lost']; ?></td>
+                            <td><?php echo $s['legs_for']; ?></td>
+                            <td><?php echo $s['legs_against']; ?></td>
+                            <td><?php echo $s['legs_for'] - $s['legs_against']; ?></td>
+                            <td><?php echo $three_da; ?></td>
+                            <td><?php echo $dbl_pct; ?></td>
+                            <td><?php echo $s['highscore'] > 0 ? $s['highscore'] : '-'; ?></td>
+                            <td><?php echo $s['highco'] > 0 ? $s['highco'] : '-'; ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
+                <?php endif; ?>
+                
                 <!--<?php if ($is_admin): ?>
                     <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>Edit Player Assignments</button></a>
                 <?php endif; ?>-->
