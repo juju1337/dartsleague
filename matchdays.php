@@ -23,6 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    if (isset($_POST['auto_assign_finals'])) {
+        autoAssignFinals($_POST['matchday_id']);
+        header('Location: matchdays.php?view=' . $_POST['matchday_id']);
+        exit;
+    }
+    
     if (isset($_POST['add_set'])) {
         $result = addSet($_POST);
         if ($result['success']) {
@@ -137,6 +143,10 @@ function updateMatchday($id, $date, $location) {
 function assignPlayoffPlayers($matchday_id, $data) {
     global $matches_file, $all_matches;
     
+    if (!$all_matches) {
+        return; // Safety check
+    }
+    
     $fp = fopen($matches_file, 'w');
     fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
     
@@ -174,6 +184,67 @@ function assignPlayoffPlayers($matchday_id, $data) {
                 $match['sets1'],
                 $match['sets2']
             ]);
+        }
+    }
+    fclose($fp);
+}
+
+function autoAssignFinals($matchday_id) {
+    global $matches_file;
+    
+    // Load current matches
+    $all_matches = loadMatches();
+    
+    if (!$all_matches) {
+        return; // Safety check
+    }
+    
+    // Find semi-final results
+    $semi1_winner = 0;
+    $semi1_loser = 0;
+    $semi2_winner = 0;
+    $semi2_loser = 0;
+    
+    foreach ($all_matches as $match) {
+        if ($match['matchdayid'] == $matchday_id) {
+            if ($match['phase'] == 'semi1' && ($match['sets1'] > 0 || $match['sets2'] > 0)) {
+                if ($match['sets1'] > $match['sets2']) {
+                    $semi1_winner = $match['player1id'];
+                    $semi1_loser = $match['player2id'];
+                } else {
+                    $semi1_winner = $match['player2id'];
+                    $semi1_loser = $match['player1id'];
+                }
+            }
+            if ($match['phase'] == 'semi2' && ($match['sets1'] > 0 || $match['sets2'] > 0)) {
+                if ($match['sets1'] > $match['sets2']) {
+                    $semi2_winner = $match['player1id'];
+                    $semi2_loser = $match['player2id'];
+                } else {
+                    $semi2_winner = $match['player2id'];
+                    $semi2_loser = $match['player1id'];
+                }
+            }
+        }
+    }
+    
+    // Update matches.csv with final assignments
+    $fp = fopen($matches_file, 'w');
+    fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
+    
+    foreach ($all_matches as $m) {
+        if ($m['matchdayid'] == $matchday_id) {
+            if ($m['phase'] == 'third' && $semi1_loser > 0 && $semi2_loser > 0) {
+                // Assign losers to 3rd place match
+                fputcsv($fp, [$m['id'], $m['matchdayid'], $m['phase'], $m['firsttosets'], $m['firsttolegs'], $semi1_loser, $semi2_loser, $m['sets1'], $m['sets2']]);
+            } elseif ($m['phase'] == 'final' && $semi1_winner > 0 && $semi2_winner > 0) {
+                // Assign winners to final
+                fputcsv($fp, [$m['id'], $m['matchdayid'], $m['phase'], $m['firsttosets'], $m['firsttolegs'], $semi1_winner, $semi2_winner, $m['sets1'], $m['sets2']]);
+            } else {
+                fputcsv($fp, [$m['id'], $m['matchdayid'], $m['phase'], $m['firsttosets'], $m['firsttolegs'], $m['player1id'], $m['player2id'], $m['sets1'], $m['sets2']]);
+            }
+        } else {
+            fputcsv($fp, [$m['id'], $m['matchdayid'], $m['phase'], $m['firsttosets'], $m['firsttolegs'], $m['player1id'], $m['player2id'], $m['sets1'], $m['sets2']]);
         }
     }
     fclose($fp);
@@ -649,7 +720,7 @@ function getPhaseLabel($phase) {
                                 <td><?php echo $set['legs1']; ?></td>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <td><strong><?php echo $p1_stats['total_legs']; ?></strong></td>
+                            <td><strong><?php echo $p1_stats['dbl_hit']; ?></strong></td>
                         <?php endif; ?>
                         <td><?php echo $p1_3da; ?></td>
                         <td><?php echo $p1_dbl; ?></td>
@@ -662,7 +733,7 @@ function getPhaseLabel($phase) {
                                 <td><?php echo $set['legs2']; ?></td>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <td><strong><?php echo $p2_stats['total_legs']; ?></strong></td>
+                            <td><strong><?php echo $p2_stats['dbl_hit']; ?></strong></td>
                         <?php endif; ?>
                         <td><?php echo $p2_3da; ?></td>
                         <td><?php echo $p2_dbl; ?></td>
@@ -680,6 +751,7 @@ function getPhaseLabel($phase) {
             $standings = [];
             foreach ($players as $player) {
                 $standings[$player['id']] = [
+                    'id' => $player['id'],
                     'name' => getPlayerName($player['id']),
                     'played' => 0,
                     'won' => 0,
@@ -815,9 +887,53 @@ function getPhaseLabel($phase) {
             }
             ?>
             
+            <?php 
+            // Check if playoffs need player assignment
+            $has_unassigned = false;
+            $can_auto_assign = true;
+            
+            foreach ($playoff_matches as $match) {
+                if ($match['player1id'] == 0 || $match['player2id'] == 0) {
+                    $has_unassigned = true;
+                    break;
+                }
+            }
+            
+            // Check if all group matches are complete
+            $all_group_complete = true;
+            foreach ($group_matches as $gm) {
+                if ($gm['sets1'] == 0 && $gm['sets2'] == 0) {
+                    $all_group_complete = false;
+                    $can_auto_assign = false;
+                    break;
+                }
+            }
+            
+            // Get standings for auto-assignment
+            $standings_sorted = [];
+            if ($can_auto_assign && !empty($standings)) {
+                $standings_sorted = $standings;
+                // Already sorted by points, then leg difference
+            }
+            
+            // Auto-assign if needed
+            if ($has_unassigned && $can_auto_assign && count($standings_sorted) >= 4) {
+                $auto_assignments = [
+                    'semi1' => ['p1' => $standings_sorted[0]['id'] ?? 0, 'p2' => $standings_sorted[3]['id'] ?? 0], // 1st vs 4th
+                    'semi2' => ['p1' => $standings_sorted[1]['id'] ?? 0, 'p2' => $standings_sorted[2]['id'] ?? 0]  // 2nd vs 3rd
+                ];
+            } else {
+                $auto_assignments = [];
+            }
+            ?>
+            
             <?php if ($has_unassigned && $is_admin): ?>
                 <div class="info">
-                    <strong>Note:</strong> Some playoff matches don't have players assigned yet. Assign them based on group phase standings.
+                    <?php if (!$all_group_complete): ?>
+                        <strong>Note:</strong> Complete all group matches first. Players will be auto-assigned to playoffs based on standings.
+                    <?php else: ?>
+                        <strong>Auto-Assignment Ready:</strong> Players have been assigned based on group standings. You can modify the assignments below.
+                    <?php endif; ?>
                 </div>
                 
                 <form method="POST">
@@ -827,17 +943,33 @@ function getPhaseLabel($phase) {
                             <th>Match</th>
                             <th>Player 1</th>
                             <th>Player 2</th>
-                            <th>Format</th>
                         </tr>
                         <?php foreach ($playoff_matches as $match): ?>
+                        <?php
+                        // Use auto-assignment if available, otherwise use current values
+                        $default_p1 = $match['player1id'];
+                        $default_p2 = $match['player2id'];
+                        
+                        if (isset($auto_assignments[$match['phase']])) {
+                            $default_p1 = $auto_assignments[$match['phase']]['p1'];
+                            $default_p2 = $auto_assignments[$match['phase']]['p2'];
+                        }
+                        ?>
                         <tr class="playoff-phase">
                             <td><?php echo getPhaseLabel($match['phase']); ?></td>
                             <td>
                                 <select name="playoff_<?php echo $match['phase']; ?>_p1">
                                     <option value="0">TBD</option>
                                     <?php foreach ($players as $p): ?>
-                                        <option value="<?php echo $p['id']; ?>" <?php echo $match['player1id'] == $p['id'] ? 'selected' : ''; ?>>
+                                        <option value="<?php echo $p['id']; ?>" <?php echo $default_p1 == $p['id'] ? 'selected' : ''; ?>>
                                             <?php echo getPlayerName($p['id']); ?>
+                                            <?php if ($can_auto_assign && isset($standings_sorted)): ?>
+                                                <?php foreach ($standings_sorted as $idx => $st): ?>
+                                                    <?php if (isset($st['id']) && $st['id'] == $p['id']): ?>
+                                                        (<?php echo $idx + 1; ?><?php echo ($idx == 0 ? 'st' : ($idx == 1 ? 'nd' : ($idx == 2 ? 'rd' : 'th'))); ?>)
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -846,18 +978,40 @@ function getPhaseLabel($phase) {
                                 <select name="playoff_<?php echo $match['phase']; ?>_p2">
                                     <option value="0">TBD</option>
                                     <?php foreach ($players as $p): ?>
-                                        <option value="<?php echo $p['id']; ?>" <?php echo $match['player2id'] == $p['id'] ? 'selected' : ''; ?>>
+                                        <option value="<?php echo $p['id']; ?>" <?php echo $default_p2 == $p['id'] ? 'selected' : ''; ?>>
                                             <?php echo getPlayerName($p['id']); ?>
+                                            <?php if ($can_auto_assign && isset($standings_sorted)): ?>
+                                                <?php foreach ($standings_sorted as $idx => $st): ?>
+                                                    <?php if (isset($st['id']) && $st['id'] == $p['id']): ?>
+                                                        (<?php echo $idx + 1; ?><?php echo ($idx == 0 ? 'st' : ($idx == 1 ? 'nd' : ($idx == 2 ? 'rd' : 'th'))); ?>)
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
                             </td>
-                            <td class="match-format">First to <?php echo $match['firsttosets']; ?> sets (each to <?php echo $match['firsttolegs']; ?> legs)</td>
                         </tr>
                         <?php endforeach; ?>
                     </table>
                     <input type="submit" name="assign_playoffs" value="Assign Players">
                 </form>
+                <?php 
+                // Check if semis are complete
+                $semis_complete = true;
+                foreach ($playoff_matches as $pm) {
+                    if (($pm['phase'] == 'semi1' || $pm['phase'] == 'semi2') && $pm['sets1'] == 0 && $pm['sets2'] == 0) {
+                        $semis_complete = false;
+                    }
+                }
+                ?>
+                
+                <?php if ($semis_complete && $is_admin): ?>
+                    <form method="POST" style="margin-top: 10px;">
+                        <input type="hidden" name="matchday_id" value="<?php echo $md['id']; ?>">
+                        <input type="submit" name="auto_assign_finals" value="Auto-Assign Final Matches from Semi Results">
+                    </form>
+                <?php endif; ?>
             <?php else: ?>
                 <?php 
                 $first_playoff = array_values($playoff_matches)[0];
@@ -1087,7 +1241,7 @@ function getPhaseLabel($phase) {
                                     <td><?php echo $set['legs1']; ?></td>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <td><strong><?php echo $p1_stats['total_legs']; ?></strong></td>
+                                <td><strong><?php echo $p1_stats['dbl_hit']; ?></strong></td>
                             <?php endif; ?>
                             <td><?php echo $p1_3da; ?></td>
                             <td><?php echo $p1_dbl; ?></td>
@@ -1100,7 +1254,7 @@ function getPhaseLabel($phase) {
                                     <td><?php echo $set['legs2']; ?></td>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <td><strong><?php echo $p2_stats['total_legs']; ?></strong></td>
+                                <td><strong><?php echo $p2_stats['dbl_hit']; ?></strong></td>
                             <?php endif; ?>
                             <td><?php echo $p2_3da; ?></td>
                             <td><?php echo $p2_dbl; ?></td>
