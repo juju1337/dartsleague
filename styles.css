@@ -83,7 +83,7 @@ input[type="checkbox"] {
 }
 
 nav {
-    background-color: #f0f0f0;
+    background-color: #f0f000;
     padding: 10px;
     margin-bottom: 20px;
     border-bottom: 2px solid #ddd;
@@ -363,3 +363,4 @@ nav {
         font-size: 16px; /* Prevents zoom on iOS */
     }
 }
+
