@@ -22,8 +22,16 @@ $step = isset($_GET['step']) ? intval($_GET['step']) : 1;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['select_matches'])) {
         // Store selected matches in session
+        $selected_sets = isset($_POST['selected_sets']) ? $_POST['selected_sets'] : [];
+        
+        if (empty($selected_sets)) {
+            $_SESSION['error'] = 'Please select at least one set to import.';
+            header('Location: import_stats.php?step=1');
+            exit;
+        }
+        
         $_SESSION['selected_matches'] = isset($_POST['selected_matches']) ? $_POST['selected_matches'] : [];
-        $_SESSION['selected_sets'] = isset($_POST['selected_sets']) ? $_POST['selected_sets'] : [];
+        $_SESSION['selected_sets'] = $selected_sets;
         header('Location: import_stats.php?step=2');
         exit;
     }
@@ -280,6 +288,28 @@ function getPhaseLabel($phase) {
     return isset($labels[$phase]) ? $labels[$phase] : $phase;
 }
 
+function setHasDetailedStats($set_id) {
+    global $sets_file;
+    
+    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            if ($row[0] == $set_id) {
+                // Check if any detailed stats are filled (darts, 3da, dbl attempts, highscore, highco)
+                $has_stats = (intval($row[6]) > 0 || intval($row[7]) > 0 ||  // darts
+                             floatval($row[8]) > 0 || floatval($row[9]) > 0 ||  // 3da
+                             intval($row[10]) > 0 || intval($row[11]) > 0 ||  // dbl attempts
+                             intval($row[12]) > 0 || intval($row[13]) > 0 ||  // highscore
+                             intval($row[14]) > 0 || intval($row[15]) > 0);   // highco
+                fclose($fp);
+                return $has_stats;
+            }
+        }
+        fclose($fp);
+    }
+    return false;
+}
+
 $players = loadPlayers();
 $matchdays = loadMatchdays();
 $all_matches = loadMatches();
@@ -300,8 +330,13 @@ foreach ($all_matches as $match) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         function toggleMatchdaySets(matchdayId, checked) {
-            const checkboxes = document.querySelectorAll('.matchday-' + matchdayId + '-set');
-            checkboxes.forEach(cb => cb.checked = checked);
+            // Check/uncheck all matches in this matchday
+            const matchCheckboxes = document.querySelectorAll('.matchday-' + matchdayId + '-match');
+            matchCheckboxes.forEach(cb => cb.checked = checked);
+            
+            // Check/uncheck all sets in this matchday
+            const setCheckboxes = document.querySelectorAll('.matchday-' + matchdayId + '-set');
+            setCheckboxes.forEach(cb => cb.checked = checked);
         }
         
         function toggleMatchSets(matchId, checked) {
@@ -335,6 +370,13 @@ foreach ($all_matches as $match) {
             <div class="warning">
                 <strong>No matches with results found.</strong> Play some matches first before importing statistics.
             </div>
+            
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="warning">
+                    <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+                </div>
+            <?php endif; ?>
+            
         <?php else: ?>
             <form method="POST">
                 <?php
@@ -353,14 +395,14 @@ foreach ($all_matches as $match) {
                 
                 <div class="section">
                     <h2>
+                        <label style="font-weight: normal; font-size: 0.9em; margin-right: 15px;">
+                            <input type="checkbox" onclick="toggleMatchdaySets(<?php echo $md_id; ?>, this.checked)">
+                            Select All
+                        </label>
                         Matchday <?php echo $md_id; ?>
                         <?php if ($matchday['date']): ?>
                             - <?php echo $matchday['date']; ?>
                         <?php endif; ?>
-                        <label style="float: right; font-weight: normal; font-size: 0.9em;">
-                            <input type="checkbox" onclick="toggleMatchdaySets(<?php echo $md_id; ?>, this.checked)">
-                            Select All
-                        </label>
                     </h2>
                     
                     <table>
@@ -379,6 +421,7 @@ foreach ($all_matches as $match) {
                                 <input type="checkbox" 
                                        name="selected_matches[]" 
                                        value="<?php echo $match['id']; ?>"
+                                       class="matchday-<?php echo $md_id; ?>-match"
                                        onclick="toggleMatchSets(<?php echo $match['id']; ?>, this.checked)">
                             </td>
                             <td>
@@ -392,14 +435,19 @@ foreach ($all_matches as $match) {
                             <td><?php echo $match['sets1']; ?> : <?php echo $match['sets2']; ?></td>
                             <td>
                                 <?php if (!empty($sets)): ?>
-                                    <?php foreach ($sets as $idx => $set): ?>
-                                        <label style="display: block; margin: 2px 0;">
+                                    <?php foreach ($sets as $idx => $set): 
+                                        $has_stats = setHasDetailedStats($set['id']);
+                                    ?>
+                                        <label style="display: block; margin: 2px 0; <?php echo $has_stats ? 'color: #ff6600;' : ''; ?>">
                                             <input type="checkbox" 
                                                    name="selected_sets[]" 
                                                    value="<?php echo $set['id']; ?>"
                                                    class="matchday-<?php echo $md_id; ?>-set match-<?php echo $match['id']; ?>-set">
                                             Set <?php echo ($idx + 1); ?>: 
                                             <?php echo $set['legs1']; ?>-<?php echo $set['legs2']; ?>
+                                            <?php if ($has_stats): ?>
+                                                <strong title="This set already has detailed statistics">[! Has Stats]</strong>
+                                            <?php endif; ?>
                                         </label>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -412,6 +460,26 @@ foreach ($all_matches as $match) {
                 </div>
                 
                 <?php endforeach; ?>
+                
+                <div class="warning" style="display: none;" id="stats-warning">
+                    <strong>Warning:</strong> Some selected sets already have detailed statistics. Importing will overwrite existing data.
+                </div>
+                
+                <script>
+                    // Show warning if sets with stats are checked
+                    document.addEventListener('change', function(e) {
+                        if (e.target.type === 'checkbox' && e.target.name === 'selected_sets[]') {
+                            const checkedWithStats = document.querySelectorAll('input[name="selected_sets[]"]:checked');
+                            let hasStats = false;
+                            checkedWithStats.forEach(cb => {
+                                if (cb.parentElement.querySelector('strong[title*="statistics"]')) {
+                                    hasStats = true;
+                                }
+                            });
+                            document.getElementById('stats-warning').style.display = hasStats ? 'block' : 'none';
+                        }
+                    });
+                </script>
                 
                 <input type="submit" name="select_matches" value="Next: Upload SQLite File">
             </form>
@@ -475,15 +543,20 @@ foreach ($all_matches as $match) {
                             <th>Match with SQLite Player</th>
                         </tr>
                         <?php 
-                        // Get unique players involved in selected matches
+                        // Get unique players involved in selected sets
                         $involved_players = [];
-                        $selected_matches = isset($_SESSION['selected_matches']) ? $_SESSION['selected_matches'] : [];
+                        $selected_sets = isset($_SESSION['selected_sets']) ? $_SESSION['selected_sets'] : [];
                         
-                        foreach ($all_matches as $match) {
-                            if (in_array($match['id'], $selected_matches)) {
-                                $involved_players[$match['player1id']] = true;
-                                $involved_players[$match['player2id']] = true;
+                        // Load all sets to find which players are involved
+                        if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
+                            $header = fgetcsv($fp);
+                            while (($row = fgetcsv($fp)) !== false) {
+                                if (in_array($row[0], $selected_sets)) { // set id
+                                    $involved_players[$row[2]] = true; // player1id
+                                    $involved_players[$row[3]] = true; // player2id
+                                }
                             }
+                            fclose($fp);
                         }
                         
                         foreach ($involved_players as $player_id => $dummy):
