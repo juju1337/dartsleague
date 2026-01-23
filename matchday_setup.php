@@ -355,6 +355,7 @@ function getPlayerName($player_id) {
 <head>
     <title>Tournament Setup</title>
     <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         function togglePlayoffs(prefix) {
             var checkbox = document.getElementById(prefix + '_has_playoffs');
@@ -375,6 +376,16 @@ function getPlayerName($player_id) {
     </script>
 </head>
 <body>
+    
+    <nav>
+        <a href="index.php">Tournament Overview</a>
+        <?php if (!empty($matchdays)): ?>
+            <?php foreach ($matchdays as $md): ?>
+                | <a href="matchdays.php?view=<?php echo $md['id']; ?>">Matchday <?php echo $md['id']; ?></a>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </nav>
+    
     <h1>Tournament Setup</h1>
 
     <?php if ($setup_complete): ?>

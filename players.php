@@ -125,9 +125,20 @@ function deletePlayer($id) {
 <html>
 <head>
     <title>Player Management</title>
-    <link rel="stylesheet" href="styles.css">   
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+    
+    <nav>
+        <a href="index.php">Tournament Overview</a>
+        <?php if (!empty($matchdays)): ?>
+            <?php foreach ($matchdays as $md): ?>
+                | <a href="matchdays.php?view=<?php echo $md['id']; ?>">Matchday <?php echo $md['id']; ?></a>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </nav>
+    
     <h1>Player Management</h1>
     
     <div class="form-section">

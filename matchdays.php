@@ -19,14 +19,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (isset($_POST['assign_playoffs'])) {
         assignPlayoffPlayers($_POST['matchday_id'], $_POST);
-        header('Location: matchdays.php?view=' . $_POST['matchday_id']);
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '#semis');
         exit;
     }
     
     if (isset($_POST['auto_assign_finals'])) {
         autoAssignFinals($_POST['matchday_id']);
         // Force reload
-        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&t=' . time());
+        //header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&t=' . time());
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '#finals');
         exit;
     }
     
@@ -46,6 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id']);
         exit;
     }
+    
+    if (isset($_POST['save_extra_points'])) {
+        saveExtraPoints($_POST['matchday_id'], $_POST['extra_points']);
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '#extrapoints');
+    exit;
+    }
+
 }
 
 // Load data
@@ -438,14 +446,59 @@ function getPhaseLabel($phase) {
     ];
     return isset($labels[$phase]) ? $labels[$phase] : $phase;
 }
+
+function saveExtraPoints($matchday_id, $extra_points) {
+    $extrapoints_file = 'tables/extrapoints.csv';
+    
+    // Load all existing extra points
+    $all_extra = [];
+    if (file_exists($extrapoints_file) && ($fp = fopen($extrapoints_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            // Keep points from other matchdays
+            if ($row[1] != $matchday_id) {
+                $all_extra[] = $row;
+            }
+        }
+        fclose($fp);
+    }
+    
+    // Add new extra points for this matchday
+    foreach ($extra_points as $player_id => $points) {
+        $points = intval($points);
+        if ($points > 0) {
+            $all_extra[] = [$player_id, $matchday_id, $points];
+        }
+    }
+    
+    // Write back to file
+    $fp = fopen($extrapoints_file, 'w');
+    fputcsv($fp, ['player_id', 'matchday_id', 'points']);
+    foreach ($all_extra as $row) {
+        fputcsv($fp, $row);
+    }
+    fclose($fp);
+}
+
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <title>Matchday Management</title>
     <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+    
+    <nav>
+        <a href="index.php">Tournament Overview</a>
+        <?php if (!empty($matchdays)): ?>
+            <?php foreach ($matchdays as $md): ?>
+                | <a href="matchdays.php?view=<?php echo $md['id']; ?>">Matchday <?php echo $md['id']; ?></a>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </nav>
+    
     <h1>Matchday Management</h1>
     
     <?php if (empty($matchdays)): ?>
@@ -962,7 +1015,7 @@ function getPhaseLabel($phase) {
             
             <!-- SEMI-FINALS ASSIGNMENT -->
             <?php if ($semis_unassigned && $is_admin): ?>
-                <h3>Semi-Finals Assignment</h3>
+                <h3 id="semis">Semi-Finals Assignment</h3>
                 <div class="info">
                     <?php if (!$all_group_complete): ?>
                         <strong>Note:</strong> Complete all group matches first. Players will be auto-assigned to semi-finals based on standings.
@@ -1299,7 +1352,7 @@ function getPhaseLabel($phase) {
                 
                 <!-- FINALS ASSIGNMENT -->
                 <?php if (!$semis_unassigned && $finals_unassigned && $is_admin): ?>
-                    <h3>Final Matches Assignment</h3>
+                    <h3 id="finals">Final Matches Assignment</h3>
                     <div class="info">
                         <?php if (!$semis_complete): ?>
                             <strong>Note:</strong> Complete all semi-final matches first. Players will be auto-assigned to final matches based on semi-final results.
@@ -1566,6 +1619,58 @@ function getPhaseLabel($phase) {
                         <?php endforeach; ?>
                     </table>
                 <?php endif; ?>
+                
+                <!-- EXTRA POINTS -->
+                <?php if ($all_matchday_complete && $is_admin): ?>
+                    <h3 id="extrapoints">Extra Points</h3>
+                    <p>Award additional points for special achievements:</p>
+                    
+                    <?php
+                    // Load existing extra points for this matchday
+                    $extrapoints_file = 'tables/extrapoints.csv';
+                    $existing_extra = [];
+                    
+                    if (!file_exists($extrapoints_file)) {
+                        $fp = fopen($extrapoints_file, 'w');
+                        fputcsv($fp, ['player_id', 'matchday_id', 'points']);
+                        fclose($fp);
+                    }
+                    
+                    if (file_exists($extrapoints_file) && ($fp = fopen($extrapoints_file, 'r')) !== false) {
+                        $header = fgetcsv($fp);
+                        while (($row = fgetcsv($fp)) !== false) {
+                            if ($row[1] == $md['id']) {
+                                $existing_extra[$row[0]] = intval($row[2]);
+                            }
+                        }
+                        fclose($fp);
+                    }
+                    ?>
+                    
+                    <form method="POST">
+                        <input type="hidden" name="matchday_id" value="<?php echo $md['id']; ?>">
+                        <table>
+                            <tr>
+                                <th>Player</th>
+                                <th>Extra Points</th>
+                            </tr>
+                            <?php foreach ($players as $player): ?>
+                            <tr>
+                                <td><?php echo getPlayerName($player['id']); ?></td>
+                                <td>
+                                    <input type="number" 
+                                           name="extra_points[<?php echo $player['id']; ?>]" 
+                                           value="<?php echo isset($existing_extra[$player['id']]) ? $existing_extra[$player['id']] : 0; ?>" 
+                                           min="0" 
+                                           style="width: 80px;">
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </table>
+                        <input type="submit" name="save_extra_points" value="Save Extra Points">
+                    </form>
+                <?php endif; ?>
+
                 
                 <!--<?php if ($is_admin): ?>
                     <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>Edit Player Assignments</button></a>

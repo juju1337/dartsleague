@@ -1,7 +1,12 @@
+/* Light mode (default) */
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
-    max-width: 1200px;
+    /* max-width: 1200px; */
+    /* For responsiveness */
+    max-width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 h1 {
@@ -33,7 +38,7 @@ td:first-child {
 }
 
 td.player-name, th.player-name {
-    width: 400px;
+    width: 300px;
 }
 
 select {
@@ -77,6 +82,13 @@ input[type="checkbox"] {
     margin: 5px;
 }
 
+nav {
+    background-color: #f0f0f0;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ddd;
+}
+
 .info {
     background-color: #e7f3ff;
     padding: 10px;
@@ -117,8 +129,9 @@ input[type="checkbox"] {
     background-color: #fff3e0;
 }
 
-.match-format { font-size: 0.9em;
-color: #666;
+.match-format {
+    font-size: 0.9em;
+    color: #666;
  }
  
 .set-row {
@@ -152,3 +165,201 @@ color: #666;
     border-left: 3px solid #4CAF50;
 }
 
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    h1 {
+        color: #e0e0e0;
+    }
+
+    table {
+        background-color: #2a2a2a;
+    }
+
+    th {
+        background-color: #333333 !important;
+        color: #e0e0e0;
+    }
+
+    td, th {
+        border-color: #444444 !important;
+    }
+    
+    nav {
+        background-color: #2a2a2a;
+        border-bottom-color: #444444;
+    }
+    
+    .info {
+        background-color: #1e3a5f;
+        border-left-color: #4a90e2;
+        color: #e0e0e0;
+    }
+
+    .warning {
+        background-color: #4a3f1a;
+        border-left-color: #ffc107;
+        color: #e0e0e0;
+    }
+
+    .section {
+        background-color: #2a2a2a;
+        border-color: #444444;
+    }
+
+    .form-section, .subsection {
+        background-color: #2a2a2a;
+        border-color: #444444;
+    }
+
+    .login-box {
+        background-color: #2a2a2a;
+        border-color: #444444;
+    }
+        
+    .format-box {
+        background-color: #2a2a2a;
+        border-color: #444444;
+    }
+
+    .group-phase {
+        background-color: #2a2a2a !important;
+    }
+
+    .playoff-phase {
+        background-color: #3a2a1a !important;
+    }
+    
+    .admin-panel {
+        background-color: #2a2a2a;
+    }
+    
+    input[type="text"], 
+    input[type="password"], 
+    input[type="date"], 
+    input[type="number"], 
+    select {
+        background-color: #333333;
+        color: #e0e0e0;
+        border-color: #555555;
+    }
+
+    input[type="submit"], 
+    button {
+        background-color: #4a4a4a;
+        color: #e0e0e0;
+        border-color: #666666;
+    }
+
+    input[type="submit"]:hover, 
+    button:hover {
+        background-color: #5a5a5a;
+    }
+
+    a {
+        color: #6bb6ff;
+    }
+
+    a:hover {
+        color: #4a90e2;
+    }
+}
+
+/* Responsive tables */
+@media (max-width: 768px) {
+    /* Make tables scrollable on small screens */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Smaller padding on mobile */
+    th, td {
+        padding: 6px 4px;
+        font-size: 14px;
+    }
+    
+    /* Stack form inputs vertically */
+    input[type="text"],
+    input[type="password"],
+    input[type="date"],
+    input[type="number"],
+    select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Full-width buttons on mobile */
+    input[type="submit"],
+    button {
+        width: 100%;
+        margin: 5px 0;
+    }
+    
+    /* Reduce section padding */
+    .section,
+    .form-section,
+    .subsection {
+        padding: 10px;
+    }
+    
+    /* Make match tables more compact */
+    .player-name {
+        width: auto;
+        min-width: 100px;
+    }
+    
+    /* Stack navigation links vertically */
+    hr + p {
+        line-height: 2;
+    }
+    
+    /* Smaller headings on mobile */
+    h1 {
+        font-size: 24px;
+    }
+    
+    h2 {
+        font-size: 20px;
+    }
+    
+    h3 {
+        font-size: 18px;
+    }
+}
+
+/* Tablet-specific adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    body {
+        padding: 15px;
+    }
+    
+    th, td {
+        padding: 8px 6px;
+    }
+}
+
+/* Improve touch targets for mobile */
+@media (max-width: 768px) {
+    a, button, input[type="submit"] {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Make score entry forms more mobile-friendly */
+@media (max-width: 768px) {
+    .section input[type="number"] {
+        width: 60px !important;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}

@@ -157,8 +157,19 @@ function getPlayerName($player_id) {
 <head>
     <title>Tournament Overview</title>
     <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+    
+    <nav>
+        <a href="index.php">Tournament Overview</a>
+        <?php if (!empty($matchdays)): ?>
+            <?php foreach ($matchdays as $md): ?>
+                | <a href="matchdays.php?view=<?php echo $md['id']; ?>">Matchday <?php echo $md['id']; ?></a>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </nav>
+    
     <h1>Tournament Overview</h1>
     
     <!-- Tournament Information -->
@@ -625,6 +636,25 @@ function getPlayerName($player_id) {
                 if (isset($scoring_scheme['best_hco']['1'])) {
                     $overall_stats[$pid]['points'] += $scoring_scheme['best_hco']['1'];
                 }
+            }
+            
+             // Add extra points
+            $extrapoints_file = 'tables/extrapoints.csv';
+            if (file_exists($extrapoints_file) && ($fp = fopen($extrapoints_file, 'r')) !== false) {
+                $header = fgetcsv($fp);
+                while (($row = fgetcsv($fp)) !== false) {
+                    $player_id = $row[0];
+                    $matchday_id = $row[1];
+                    $extra_pts = intval($row[2]);
+                    
+                    // Only add if this matchday is complete
+                    if (in_array($matchday_id, $completed_matchdays)) {
+                        if (isset($overall_stats[$player_id])) {
+                            $overall_stats[$player_id]['points'] += $extra_pts;
+                        }
+                    }
+                }
+                fclose($fp);
             }
         }
         
