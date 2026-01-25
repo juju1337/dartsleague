@@ -646,7 +646,7 @@ function matchAllSets($matchday_id) {
                 'stats' => null,
                 'sqlite_set_id' => null,
                 'sqlite_created_at' => null,
-                'debug' => []
+                // 'debug' => []
             ];
             
             if ($player1_sqlite_id !== null && $player2_sqlite_id !== null) {
@@ -661,11 +661,11 @@ function matchAllSets($matchday_id) {
                 }
                 
                 // Always store debug info
-                if (isset($result['debug'])) {
-                    $match_info['debug'] = $result['debug'];
-                }
+                // if (isset($result['debug'])) {
+                //     $match_info['debug'] = $result['debug'];
+                // }
             } else {
-                $match_info['debug'][] = "Player mapping failed: Player1=$player1_csv_id -> SQLite=" . ($player1_sqlite_id !== null ? $player1_sqlite_id : 'NOT FOUND') . ", Player2=$player2_csv_id -> SQLite=" . ($player2_sqlite_id !== null ? $player2_sqlite_id : 'NOT FOUND');
+                // $match_info['debug'][] = "Player mapping failed: Player1=$player1_csv_id -> SQLite=" . ($player1_sqlite_id !== null ? $player1_sqlite_id : 'NOT FOUND') . ", Player2=$player2_csv_id -> SQLite=" . ($player2_sqlite_id !== null ? $player2_sqlite_id : 'NOT FOUND');
             }
             
             $matches_info[] = $match_info;
@@ -691,15 +691,15 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
     $date_filter = '';
     $params = [$player1_id, $player2_id];
     
-    $debug_info = [];
-    $debug_info[] = "Searching for: Player1 ID=$player1_id, Player2 ID=$player2_id, Legs: $expected_legs1-$expected_legs2";
-    $debug_info[] = "Matchday date: " . ($matchday_date ?: 'Not set');
+    // $debug_info = [];
+    // $debug_info[] = "Searching for: Player1 ID=$player1_id, Player2 ID=$player2_id, Legs: $expected_legs1-$expected_legs2";
+    // $debug_info[] = "Matchday date: " . ($matchday_date ?: 'Not set');
     
     if ($matchday_date && !empty($matchday_date)) {
         $date_filter = " AND s.created_at >= date(?, '-7 days') AND s.created_at <= date(?, '+7 days')";
         $params[] = $matchday_date;
         $params[] = $matchday_date;
-        $debug_info[] = "Date filter: ±7 days from $matchday_date";
+        // $debug_info[] = "Date filter: ±7 days from $matchday_date";
     }
     
     $stmt = $db->prepare("
@@ -716,7 +716,7 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
     $stmt->execute($params);
     $potential_sets = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $debug_info[] = "Found " . count($potential_sets) . " potential sets with these players";
+    // $debug_info[] = "Found " . count($potential_sets) . " potential sets with these players";
     
     // For each potential set, check if the leg counts match
     foreach ($potential_sets as $set_info) {
@@ -743,7 +743,7 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
             }
         }
         
-        $debug_info[] = "Set ID $set_id (created: {$set_info['created_at']}): Legs $legs1-$legs2";
+        // $debug_info[] = "Set ID $set_id (created: {$set_info['created_at']}): Legs $legs1-$legs2";
         
         // Check if this matches our expected leg counts (in either order)
         $match_forward = ($legs1 == $expected_legs1 && $legs2 == $expected_legs2);
@@ -753,10 +753,10 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
             // This is our set! Extract stats and return with info
             // If reversed, we need to swap the player IDs when extracting stats
             if ($match_reverse) {
-                $debug_info[] = "✓ MATCH FOUND (reversed player order)!";
+                // $debug_info[] = "✓ MATCH FOUND (reversed player order)!";
                 $stats = extractSetStats($db, $set_id, $player2_id, $player1_id);
             } else {
-                $debug_info[] = "✓ MATCH FOUND!";
+                // $debug_info[] = "✓ MATCH FOUND!";
                 $stats = extractSetStats($db, $set_id, $player1_id, $player2_id);
             }
             
@@ -764,18 +764,18 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
                 'set_id' => $set_id,
                 'created_at' => $set_info['created_at'],
                 'stats' => $stats,
-                'debug' => $debug_info
+                // 'debug' => $debug_info
             ];
         }
     }
     
-    $debug_info[] = "✗ No matching set found";
+    // $debug_info[] = "✗ No matching set found";
     
     return [
         'set_id' => null,
         'created_at' => null,
         'stats' => null,
-        'debug' => $debug_info,
+        // 'debug' => $debug_info,
         'matched' => false
     ];
 }
@@ -1118,15 +1118,6 @@ function resetImport() {
                                 Dbl Attempts: <?php echo $info['stats']['dblattempts1']; ?> / <?php echo $info['stats']['dblattempts2']; ?> |
                                 High Score: <?php echo $info['stats']['highscore1']; ?> / <?php echo $info['stats']['highscore2']; ?> |
                                 High CO: <?php echo $info['stats']['highco1']; ?> / <?php echo $info['stats']['highco2']; ?>
-                                <br>
-                                <details style="margin-top: 5px;">
-                                    <summary style="cursor: pointer; color: #666;">Show matching details</summary>
-                                    <div style="margin-top: 5px; font-family: monospace; font-size: 0.85em;">
-                                        <?php foreach ($info['debug'] as $debug_line): ?>
-                                            <?php echo htmlspecialchars($debug_line); ?><br>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </details>
                             </div>
                         <?php else: ?>
                             <div style="opacity: 0.6;">
@@ -1138,17 +1129,6 @@ function resetImport() {
                                 (<?php echo $set['legs2']; ?>)
                                 <br>
                                 <span style="color: #dc3545;">✗ No matching set found in database</span>
-                                <?php if (!empty($info['debug'])): ?>
-                                <br>
-                                <details style="margin-top: 5px;">
-                                    <summary style="cursor: pointer; color: #666;">Show debug info</summary>
-                                    <div style="margin-top: 5px; font-family: monospace; font-size: 0.85em;">
-                                        <?php foreach ($info['debug'] as $debug_line): ?>
-                                            <?php echo htmlspecialchars($debug_line); ?><br>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </details>
-                                <?php endif; ?>
                             </div>
                         <?php endif; ?>
                     </div>
