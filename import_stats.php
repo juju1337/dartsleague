@@ -407,32 +407,58 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
         }
         
         // Get high scores and checkouts from throws
+        // For each player in this leg, get their xGameSpieler ID to query throws
         $stmt = $db->prepare("
-            SELECT gs.spielerId, MAX(a.score) as max_score, MAX(a.checkout) as max_checkout
+            SELECT gs.id, gs.spielerId
             FROM xGameSpieler gs
-            LEFT JOIN aufnahmeMp a ON a.entityId = gs.id AND a.entityName = 'XGame'
             WHERE gs.legId = ? AND gs.spielerId IN (?, ?)
-            GROUP BY gs.spielerId
         ");
         $stmt->execute([$leg_id, $player1_id, $player2_id]);
-        $throw_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $player_entities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        foreach ($throw_stats as $ts) {
-            $is_player1 = ($ts['spielerId'] == $player1_id);
+        foreach ($player_entities as $entity) {
+            $entity_id = $entity['id'];
+            $is_player1 = ($entity['spielerId'] == $player1_id);
             
-            if ($is_player1) {
-                if ($ts['max_score'] > $stats['highscore1']) {
-                    $stats['highscore1'] = $ts['max_score'];
+            // Get highest score (any throw)
+            $stmt = $db->prepare("
+                SELECT MAX(score) as max_score
+                FROM aufnahmeMp
+                WHERE entityId = ? AND entityName = 'XGame'
+            ");
+            $stmt->execute([$entity_id]);
+            $result = $stmt->fetchColumn();
+            
+            if ($result !== null && $result !== false) {
+                if ($is_player1) {
+                    if ($result > $stats['highscore1']) {
+                        $stats['highscore1'] = $result;
+                    }
+                } else {
+                    if ($result > $stats['highscore2']) {
+                        $stats['highscore2'] = $result;
+                    }
                 }
-                if ($ts['max_checkout'] > $stats['highco1']) {
-                    $stats['highco1'] = $ts['max_checkout'];
-                }
-            } else {
-                if ($ts['max_score'] > $stats['highscore2']) {
-                    $stats['highscore2'] = $ts['max_score'];
-                }
-                if ($ts['max_checkout'] > $stats['highco2']) {
-                    $stats['highco2'] = $ts['max_checkout'];
+            }
+            
+            // Get highest checkout (only throws where checkout = 1)
+            $stmt = $db->prepare("
+                SELECT MAX(beginnScore) as max_checkout
+                FROM aufnahmeMp
+                WHERE entityId = ? AND entityName = 'XGame' AND checkout = 1
+            ");
+            $stmt->execute([$entity_id]);
+            $result = $stmt->fetchColumn();
+            
+            if ($result !== null && $result !== false) {
+                if ($is_player1) {
+                    if ($result > $stats['highco1']) {
+                        $stats['highco1'] = $result;
+                    }
+                } else {
+                    if ($result > $stats['highco2']) {
+                        $stats['highco2'] = $result;
+                    }
                 }
             }
         }
