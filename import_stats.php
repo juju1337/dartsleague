@@ -385,7 +385,7 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
     foreach ($legs as $leg_id) {
         // Get player stats for this leg
         $stmt = $db->prepare("
-            SELECT spielerId, gesamtScore, gesamtDarts, dartsOnDouble
+            SELECT spielerId, gesamtScore, gesamtDarts
             FROM xGameSpieler
             WHERE legId = ? AND spielerId IN (?, ?)
         ");
@@ -398,15 +398,13 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
             if ($is_player1) {
                 $stats['darts1'] += $ps['gesamtDarts'];
                 $total_score1 += $ps['gesamtScore'];
-                $stats['dblattempts1'] += $ps['dartsOnDouble'];
             } else {
                 $stats['darts2'] += $ps['gesamtDarts'];
                 $total_score2 += $ps['gesamtScore'];
-                $stats['dblattempts2'] += $ps['dartsOnDouble'];
             }
         }
         
-        // Get high scores and checkouts from throws
+        // Get throw statistics for each player in this leg
         // For each player in this leg, get their xGameSpieler ID to query throws
         $stmt = $db->prepare("
             SELECT gs.id, gs.spielerId
@@ -459,6 +457,23 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
                     if ($result > $stats['highco2']) {
                         $stats['highco2'] = $result;
                     }
+                }
+            }
+            
+            // Get total double attempts (sum of dartsOnDouble from all throws)
+            $stmt = $db->prepare("
+                SELECT SUM(dartsOnDouble) as total_dbl_attempts
+                FROM aufnahmeMp
+                WHERE entityId = ? AND entityName = 'XGame'
+            ");
+            $stmt->execute([$entity_id]);
+            $result = $stmt->fetchColumn();
+            
+            if ($result !== null && $result !== false) {
+                if ($is_player1) {
+                    $stats['dblattempts1'] += $result;
+                } else {
+                    $stats['dblattempts2'] += $result;
                 }
             }
         }
