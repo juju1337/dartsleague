@@ -1,7 +1,6 @@
 <?php
+// import_stats.php - Import Statistics from SQLite Scoring App
 session_start();
-
-// import_stats.php - Import Match Statistics from SQLite
 
 $is_admin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
 
@@ -16,167 +15,34 @@ $matchdays_file = 'tables/matchdays.csv';
 $matches_file = 'tables/matches.csv';
 $sets_file = 'tables/sets.csv';
 
-// Handle form submission
-$step = isset($_GET['step']) ? intval($_GET['step']) : 1;
+// Initialize session variables for import process
+if (!isset($_SESSION['import_step'])) {
+    $_SESSION['import_step'] = 'upload';
+}
 
+// Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['select_matches'])) {
-        // Store selected matches in session
-        $selected_sets = isset($_POST['selected_sets']) ? $_POST['selected_sets'] : [];
-        
-        if (empty($selected_sets)) {
-            $_SESSION['error'] = 'Please select at least one set to import.';
-            header('Location: import_stats.php?step=1');
-            exit;
-        }
-        
-        $_SESSION['selected_matches'] = isset($_POST['selected_matches']) ? $_POST['selected_matches'] : [];
-        $_SESSION['selected_sets'] = $selected_sets;
-        header('Location: import_stats.php?step=2');
-        exit;
-    }
-    
-    if (isset($_POST['upload_file']) && isset($_FILES['sqlite_file'])) {
-        // Check for upload errors
-        if ($_FILES['sqlite_file']['error'] !== UPLOAD_ERR_OK) {
-            $upload_errors = [
-                UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize',
-                UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE',
-                UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
-                UPLOAD_ERR_NO_FILE => 'No file was uploaded',
-                UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
-                UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-                UPLOAD_ERR_EXTENSION => 'Upload stopped by extension'
-            ];
-            $error = 'Upload error: ' . ($upload_errors[$_FILES['sqlite_file']['error']] ?? 'Unknown error');
-        } else {
-            $tmp_file = $_FILES['sqlite_file']['tmp_name'];
-            
-            if (empty($tmp_file) || !file_exists($tmp_file)) {
-                $error = "Uploaded file not found.";
-            } else {
-                try {
-                    // Open SQLite database
-                    $db = new SQLite3($tmp_file);
-                    
-                    // Get available tables
-                    $tables_result = $db->query("SELECT name FROM sqlite_master WHERE type='table'");
-                    $available_tables = [];
-                    
-                    if ($tables_result) {
-                        while ($row = $tables_result->fetchArray(SQLITE3_ASSOC)) {
-                            $available_tables[] = $row['name'];
-                        }
-                    }
-                    
-                    if (empty($available_tables)) {
-                        $error = "Database appears to be empty.";
-                        $db->close();
-                    } else {
-                        // Try to find the players table
-                        $player_table = null;
-                        $possible_names = ['Spieler', 'spieler', 'Player', 'player', 'Players', 'players'];
-                        foreach ($possible_names as $table_name) {
-                            if (in_array($table_name, $available_tables)) {
-                                $player_table = $table_name;
-                                break;
-                            }
-                        }
-                        
-                        if (!$player_table) {
-                            $error = "Could not find player table. Available tables: " . implode(', ', $available_tables);
-                            $db->close();
-                        } else {
-                            // Read first row to determine columns
-                            $result = $db->query("SELECT * FROM $player_table LIMIT 1");
-                            
-                            if ($result) {
-                                $first_row = $result->fetchArray(SQLITE3_ASSOC);
-                                
-                                if ($first_row) {
-                                    $columns = array_keys($first_row);
-                                    
-                                    // Find ID and name columns
-                                    $id_col = null;
-                                    $name_col = null;
-                                    
-                                    foreach (['id', 'ID', 'spieler_id', 'player_id'] as $possible_id) {
-                                        if (in_array($possible_id, $columns)) {
-                                            $id_col = $possible_id;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    foreach (['name', 'Name', 'NAME', 'spielername', 'player_name', 'fullname'] as $possible_name) {
-                                        if (in_array($possible_name, $columns)) {
-                                            $name_col = $possible_name;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    if (!$id_col || !$name_col) {
-                                        $error = "Could not identify ID and name columns. Available columns: " . implode(', ', $columns);
-                                        $db->close();
-                                    } else {
-                                        // Read all players
-                                        $result = $db->query("SELECT $id_col as id, $name_col as name FROM $player_table");
-                                        $sqlite_players = [];
-                                        
-                                        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                                            $sqlite_players[] = [
-                                                'id' => $row['id'],
-                                                'name' => $row['name']
-                                            ];
-                                        }
-                                        
-                                        $db->close();
-                                        
-                                        // Store in session for next step
-                                        $_SESSION['sqlite_file'] = $tmp_file;
-                                        $_SESSION['sqlite_players'] = $sqlite_players;
-                                        $_SESSION['player_table'] = $player_table;
-                                        $_SESSION['id_col'] = $id_col;
-                                        $_SESSION['name_col'] = $name_col;
-                                        
-                                        header('Location: import_stats.php?step=3');
-                                        exit;
-                                    }
-                                } else {
-                                    $error = "Player table is empty.";
-                                    $db->close();
-                                }
-                            } else {
-                                $error = "Failed to read player table.";
-                                $db->close();
-                            }
-                        }
-                    }
-                    
-                } catch (Exception $e) {
-                    $error = "Failed to read SQLite database: " . $e->getMessage();
-                }
-            }
-        }
-    }
-    
-    if (isset($_POST['match_players'])) {
-        // Store player mappings
-        $_SESSION['player_mapping'] = $_POST['player_mapping'];
-        
-        // Validate: check no duplicate selections
-        $selected = array_filter($_POST['player_mapping']);
-        if (count($selected) != count(array_unique($selected))) {
-            $_SESSION['error'] = 'Each SQLite player can only be matched once.';
-            header('Location: import_stats.php?step=3');
-            exit;
-        }
-        
-        header('Location: import_stats.php?step=4');
-        exit;
+    if (isset($_POST['upload_file'])) {
+        handleFileUpload();
+    } elseif (isset($_POST['confirm_players'])) {
+        handlePlayerMapping();
+    } elseif (isset($_POST['select_matchday'])) {
+        handleMatchdaySelection();
+    } elseif (isset($_POST['confirm_matches'])) {
+        handleConfirmMatches();
+    } elseif (isset($_POST['import_stats'])) {
+        handleStatsImport();
+    } elseif (isset($_POST['reset_import'])) {
+        resetImport();
     }
 }
 
-// Load data
+// Load CSV data
+$csv_players = loadPlayers();
+$matchdays = loadMatchdays();
+$all_matches = loadMatches();
+
+// Functions
 function loadPlayers() {
     global $players_file;
     $players = [];
@@ -211,12 +77,12 @@ function loadMatches() {
         while (($row = fgetcsv($fp)) !== false) {
             $matches[] = [
                 'id' => $row[0],
-                'matchdayid' => $row[1],
+                'matchday_id' => $row[1],
                 'phase' => $row[2],
                 'firsttosets' => $row[3],
                 'firsttolegs' => $row[4],
-                'player1id' => $row[5],
-                'player2id' => $row[6],
+                'player1_id' => $row[5],
+                'player2_id' => $row[6],
                 'sets1' => $row[7],
                 'sets2' => $row[8]
             ];
@@ -226,130 +92,785 @@ function loadMatches() {
     return $matches;
 }
 
-function loadSets($match_id) {
+function loadSets() {
     global $sets_file;
     $sets = [];
     if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
-            if ($row[1] == $match_id) {
-                $sets[] = [
-                    'id' => $row[0],
-                    'matchid' => $row[1],
-                    'player1id' => $row[2],
-                    'player2id' => $row[3],
-                    'legs1' => $row[4],
-                    'legs2' => $row[5]
-                ];
-            }
+            $sets[] = [
+                'id' => $row[0],
+                'match_id' => $row[1],
+                'player1_id' => $row[2],
+                'player2_id' => $row[3],
+                'legs1' => $row[4],
+                'legs2' => $row[5],
+                'darts1' => $row[6],
+                'darts2' => $row[7],
+                '3da1' => $row[8],
+                '3da2' => $row[9],
+                'dblattempts1' => $row[10],
+                'dblattempts2' => $row[11],
+                'highscore1' => $row[12],
+                'highscore2' => $row[13],
+                'highco1' => $row[14],
+                'highco2' => $row[15]
+            ];
         }
         fclose($fp);
     }
     return $sets;
 }
 
+function handleFileUpload() {
+    if (isset($_FILES['sqlite_file']) && $_FILES['sqlite_file']['error'] === UPLOAD_ERR_OK) {
+        $tmp_file = $_FILES['sqlite_file']['tmp_name'];
+        
+        // Read the entire file into memory
+        $file_content = file_get_contents($tmp_file);
+        
+        if ($file_content === false) {
+            $_SESSION['error'] = 'Failed to read uploaded file.';
+            return;
+        }
+        
+        // Store in session as base64
+        $_SESSION['sqlite_data'] = base64_encode($file_content);
+        $_SESSION['import_step'] = 'map_players';
+        
+        header('Location: import_stats.php');
+        exit;
+    } else {
+        $_SESSION['error'] = 'Please select a file to upload.';
+    }
+}
+
+function handlePlayerMapping() {
+    if (!isset($_POST['player_mapping']) || empty($_POST['player_mapping'])) {
+        $_SESSION['error'] = 'Please map all players before continuing.';
+        return;
+    }
+    
+    // Check for duplicate mappings
+    $mapped_sqlite_ids = array_values($_POST['player_mapping']);
+    if (count($mapped_sqlite_ids) !== count(array_unique($mapped_sqlite_ids))) {
+        $_SESSION['error'] = 'Each SQLite player can only be mapped once. Please check your selections.';
+        return;
+    }
+    
+    $_SESSION['player_mapping'] = $_POST['player_mapping'];
+    $_SESSION['import_step'] = 'select_matchday';
+    header('Location: import_stats.php');
+    exit;
+}
+
+function handleMatchdaySelection() {
+    $_SESSION['selected_matchday'] = intval($_POST['matchday_id']);
+    $_SESSION['import_step'] = 'match_sets';
+    header('Location: import_stats.php');
+    exit;
+}
+
+function handleConfirmMatches() {
+    if (!isset($_POST['selected_sets']) || empty($_POST['selected_sets'])) {
+        $_SESSION['error'] = 'Please select at least one set to import.';
+        $_SESSION['import_step'] = 'match_sets';
+        header('Location: import_stats.php');
+        exit;
+    }
+    
+    $_SESSION['selected_sets'] = $_POST['selected_sets'];
+    $_SESSION['import_step'] = 'confirm_import';
+    header('Location: import_stats.php');
+    exit;
+}
+
+function handleStatsImport() {
+    if (!isset($_SESSION['selected_sets']) || empty($_SESSION['selected_sets'])) {
+        $_SESSION['error'] = 'No sets selected for import.';
+        return;
+    }
+    
+    if (!isset($_SESSION['sqlite_data'])) {
+        $_SESSION['error'] = 'SQLite data not found. Please start over.';
+        return;
+    }
+    
+    $player_mapping = $_SESSION['player_mapping'];
+    $selected_sets = $_SESSION['selected_sets'];
+    
+    try {
+        // Create temporary file for PDO
+        $tmp_file = tempnam(sys_get_temp_dir(), 'sqlite_import_');
+        file_put_contents($tmp_file, base64_decode($_SESSION['sqlite_data']));
+        
+        $db = new PDO('sqlite:' . $tmp_file);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Load current sets
+        $csv_sets = loadSets();
+        
+        $imported_count = 0;
+        
+        foreach ($selected_sets as $set_id) {
+            // Find the set in CSV
+            $csv_set = null;
+            foreach ($csv_sets as &$s) {
+                if ($s['id'] == $set_id) {
+                    $csv_set = &$s;
+                    break;
+                }
+            }
+            
+            if (!$csv_set) {
+                continue;
+            }
+            
+            // Get match details
+            $match_id = $csv_set['match_id'];
+            $player1_csv_id = $csv_set['player1_id'];
+            $player2_csv_id = $csv_set['player2_id'];
+            
+            // Reverse lookup: CSV player ID -> SQLite player ID
+            $player1_sqlite_id = array_search($player1_csv_id, $player_mapping);
+            $player2_sqlite_id = array_search($player2_csv_id, $player_mapping);
+            
+            if ($player1_sqlite_id === false || $player2_sqlite_id === false) {
+                continue;
+            }
+            
+            // Get matchday date for filtering
+            $matchday_date = null;
+            foreach ($GLOBALS['matchdays'] as $md) {
+                if ($md['id'] == $_SESSION['selected_matchday']) {
+                    $matchday_date = $md['date'];
+                    break;
+                }
+            }
+            
+            // Find matching set in SQLite by analyzing legs
+            $stats = findSetStats($db, $player1_sqlite_id, $player2_sqlite_id, $csv_set['legs1'], $csv_set['legs2'], $matchday_date);
+            
+            if ($stats) {
+                // Update the CSV set with the stats
+                $csv_set['darts1'] = $stats['darts1'];
+                $csv_set['darts2'] = $stats['darts2'];
+                $csv_set['3da1'] = $stats['3da1'];
+                $csv_set['3da2'] = $stats['3da2'];
+                $csv_set['dblattempts1'] = $stats['dblattempts1'];
+                $csv_set['dblattempts2'] = $stats['dblattempts2'];
+                $csv_set['highscore1'] = $stats['highscore1'];
+                $csv_set['highscore2'] = $stats['highscore2'];
+                $csv_set['highco1'] = $stats['highco1'];
+                $csv_set['highco2'] = $stats['highco2'];
+                
+                $imported_count++;
+            }
+        }
+        
+        // Write back to CSV
+        saveSets($csv_sets);
+        
+        // Clean up temporary file
+        unlink($tmp_file);
+        
+        $_SESSION['success'] = "Successfully imported statistics for {$imported_count} set(s).";
+        $_SESSION['import_step'] = 'complete';
+        
+    } catch (Exception $e) {
+        // Clean up temporary file on error
+        if (isset($tmp_file) && file_exists($tmp_file)) {
+            unlink($tmp_file);
+        }
+        $_SESSION['error'] = 'Import failed: ' . $e->getMessage();
+    }
+    
+    header('Location: import_stats.php');
+    exit;
+}
+
+function findSetStats($db, $player1_id, $player2_id, $expected_legs1, $expected_legs2, $matchday_date = null) {
+    // Build query to find all sets where these two players played
+    // If we have a matchday date, filter by date proximity (within 7 days)
+    $date_filter = '';
+    $params = [$player1_id, $player2_id];
+    
+    if ($matchday_date && !empty($matchday_date)) {
+        $date_filter = " AND s.created_at >= date(?, '-7 days') AND s.created_at <= date(?, '+7 days')";
+        $params[] = $matchday_date;
+        $params[] = $matchday_date;
+    }
+    
+    $stmt = $db->prepare("
+        SELECT DISTINCT s.id as set_id, s.setNummer, s.created_at
+        FROM xGameMpSet s
+        JOIN xGameMpLeg l ON l.setId = s.id
+        JOIN xGameSpieler gs ON gs.legId = l.id
+        WHERE gs.spielerId IN (?, ?)
+        $date_filter
+        GROUP BY s.id
+        HAVING COUNT(DISTINCT gs.spielerId) = 2
+        ORDER BY s.created_at DESC
+    ");
+    $stmt->execute($params);
+    $potential_sets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // For each potential set, check if the leg counts match
+    foreach ($potential_sets as $set_info) {
+        $set_id = $set_info['set_id'];
+        
+        // Count legs won by each player
+        $stmt = $db->prepare("
+            SELECT l.siegerId, COUNT(*) as legs_won
+            FROM xGameMpLeg l
+            WHERE l.setId = ?
+            GROUP BY l.siegerId
+        ");
+        $stmt->execute([$set_id]);
+        $leg_counts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $legs1 = 0;
+        $legs2 = 0;
+        
+        foreach ($leg_counts as $lc) {
+            if ($lc['siegerId'] == $player1_id) {
+                $legs1 = $lc['legs_won'];
+            } elseif ($lc['siegerId'] == $player2_id) {
+                $legs2 = $lc['legs_won'];
+            }
+        }
+        
+        // Check if this matches our expected leg counts
+        if ($legs1 == $expected_legs1 && $legs2 == $expected_legs2) {
+            // This is our set! Now extract all stats
+            return extractSetStats($db, $set_id, $player1_id, $player2_id);
+        }
+    }
+    
+    return null;
+}
+
+function extractSetStats($db, $set_id, $player1_id, $player2_id) {
+    $stats = [
+        'darts1' => 0,
+        'darts2' => 0,
+        '3da1' => 0,
+        '3da2' => 0,
+        'dblattempts1' => 0,
+        'dblattempts2' => 0,
+        'highscore1' => 0,
+        'highscore2' => 0,
+        'highco1' => 0,
+        'highco2' => 0
+    ];
+    
+    $total_score1 = 0;
+    $total_score2 = 0;
+    
+    // Get all legs in this set
+    $stmt = $db->prepare("
+        SELECT id FROM xGameMpLeg WHERE setId = ? ORDER BY legNummer
+    ");
+    $stmt->execute([$set_id]);
+    $legs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    foreach ($legs as $leg_id) {
+        // Get player stats for this leg
+        $stmt = $db->prepare("
+            SELECT spielerId, gesamtScore, gesamtDarts, dartsOnDouble
+            FROM xGameSpieler
+            WHERE legId = ? AND spielerId IN (?, ?)
+        ");
+        $stmt->execute([$leg_id, $player1_id, $player2_id]);
+        $player_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($player_stats as $ps) {
+            $is_player1 = ($ps['spielerId'] == $player1_id);
+            
+            if ($is_player1) {
+                $stats['darts1'] += $ps['gesamtDarts'];
+                $total_score1 += $ps['gesamtScore'];
+                $stats['dblattempts1'] += $ps['dartsOnDouble'];
+            } else {
+                $stats['darts2'] += $ps['gesamtDarts'];
+                $total_score2 += $ps['gesamtScore'];
+                $stats['dblattempts2'] += $ps['dartsOnDouble'];
+            }
+        }
+        
+        // Get high scores and checkouts from throws
+        $stmt = $db->prepare("
+            SELECT gs.spielerId, MAX(a.score) as max_score, MAX(a.checkout) as max_checkout
+            FROM xGameSpieler gs
+            LEFT JOIN aufnahmeMp a ON a.entityId = gs.id AND a.entityName = 'XGame'
+            WHERE gs.legId = ? AND gs.spielerId IN (?, ?)
+            GROUP BY gs.spielerId
+        ");
+        $stmt->execute([$leg_id, $player1_id, $player2_id]);
+        $throw_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($throw_stats as $ts) {
+            $is_player1 = ($ts['spielerId'] == $player1_id);
+            
+            if ($is_player1) {
+                if ($ts['max_score'] > $stats['highscore1']) {
+                    $stats['highscore1'] = $ts['max_score'];
+                }
+                if ($ts['max_checkout'] > $stats['highco1']) {
+                    $stats['highco1'] = $ts['max_checkout'];
+                }
+            } else {
+                if ($ts['max_score'] > $stats['highscore2']) {
+                    $stats['highscore2'] = $ts['max_score'];
+                }
+                if ($ts['max_checkout'] > $stats['highco2']) {
+                    $stats['highco2'] = $ts['max_checkout'];
+                }
+            }
+        }
+    }
+    
+    // Calculate 3-dart averages
+    $stats['3da1'] = ($stats['darts1'] > 0) ? round(($total_score1 / $stats['darts1']) * 3, 2) : 0;
+    $stats['3da2'] = ($stats['darts2'] > 0) ? round(($total_score2 / $stats['darts2']) * 3, 2) : 0;
+    
+    return $stats;
+}
+
+function saveSets($sets) {
+    global $sets_file;
+    
+    $fp = fopen($sets_file, 'w');
+    fputcsv($fp, ['id', 'match_id', 'player1_id', 'player2_id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
+    
+    foreach ($sets as $set) {
+        fputcsv($fp, [
+            $set['id'],
+            $set['match_id'],
+            $set['player1_id'],
+            $set['player2_id'],
+            $set['legs1'],
+            $set['legs2'],
+            $set['darts1'],
+            $set['darts2'],
+            $set['3da1'],
+            $set['3da2'],
+            $set['dblattempts1'],
+            $set['dblattempts2'],
+            $set['highscore1'],
+            $set['highscore2'],
+            $set['highco1'],
+            $set['highco2']
+        ]);
+    }
+    
+    fclose($fp);
+}
+
+function getSQLitePlayers() {
+    if (!isset($_SESSION['sqlite_data'])) {
+        return [];
+    }
+    
+    try {
+        // Create temporary file for PDO
+        $tmp_file = tempnam(sys_get_temp_dir(), 'sqlite_import_');
+        file_put_contents($tmp_file, base64_decode($_SESSION['sqlite_data']));
+        
+        $db = new PDO('sqlite:' . $tmp_file);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        $stmt = $db->query("SELECT id, name FROM Spieler ORDER BY name");
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Clean up temporary file
+        unlink($tmp_file);
+        
+        return $result;
+        
+    } catch (Exception $e) {
+        // Clean up temporary file on error
+        if (isset($tmp_file) && file_exists($tmp_file)) {
+            unlink($tmp_file);
+        }
+        $_SESSION['error'] = 'Failed to read SQLite file: ' . $e->getMessage();
+        return [];
+    }
+}
+
+function findBestMatch($csv_player, $sqlite_players) {
+    $best_match_id = null;
+    $best_score = 0;
+    
+    // We'll compare using the nickname if it exists, otherwise use the name
+    $csv_compare = !empty($csv_player['nickname']) ? $csv_player['nickname'] : $csv_player['name'];
+    
+    foreach ($sqlite_players as $sp) {
+        $score = similarityScore($csv_compare, $sp['name']);
+        if ($score > $best_score) {
+            $best_score = $score;
+            $best_match_id = $sp['id'];
+        }
+    }
+    
+    return $best_match_id;
+}
+
+function similarityScore($str1, $str2) {
+    $str1 = strtolower(trim($str1));
+    $str2 = strtolower(trim($str2));
+    
+    // Exact match
+    if ($str1 === $str2) {
+        return 100;
+    }
+    
+    // Contains match (substring)
+    if (strpos($str2, $str1) !== false || strpos($str1, $str2) !== false) {
+        return 90;
+    }
+    
+    // Check for similarity using levenshtein distance
+    $lev = levenshtein($str1, $str2);
+    $max_len = max(strlen($str1), strlen($str2));
+    
+    if ($max_len == 0) {
+        return 0;
+    }
+    
+    $similarity = (1 - $lev / $max_len) * 100;
+    
+    // Also check similar_text for better matching
+    similar_text($str1, $str2, $percent);
+    
+    // Return the higher of the two scores
+    return max($similarity, $percent);
+}
+
+function isMatchdayComplete($matchday_id) {
+    global $all_matches;
+    
+    $matchday_matches = array_filter($all_matches, function($m) use ($matchday_id) {
+        return $m['matchday_id'] == $matchday_id;
+    });
+    
+    foreach ($matchday_matches as $match) {
+        // Check if the match has been played (at least one set score entered)
+        if ($match['sets1'] == 0 && $match['sets2'] == 0) {
+            return false;
+        }
+    }
+    
+    return count($matchday_matches) > 0;
+}
+
+function getMatchdaySets($matchday_id) {
+    global $all_matches;
+    
+    $matchday_matches = array_filter($all_matches, function($m) use ($matchday_id) {
+        return $m['matchday_id'] == $matchday_id;
+    });
+    
+    $csv_sets = loadSets();
+    
+    $result = [];
+    foreach ($matchday_matches as $match) {
+        $match_sets = array_filter($csv_sets, function($s) use ($match) {
+            return $s['match_id'] == $match['id'];
+        });
+        
+        foreach ($match_sets as $set) {
+            $set['match'] = $match;
+            $result[] = $set;
+        }
+    }
+    
+    return $result;
+}
+
+function hasStats($set) {
+    return $set['darts1'] > 0 || $set['darts2'] > 0 || $set['3da1'] > 0 || $set['3da2'] > 0;
+}
+
+function matchAllSets($matchday_id) {
+    global $all_matches;
+    
+    if (!isset($_SESSION['sqlite_data']) || !isset($_SESSION['player_mapping'])) {
+        return [];
+    }
+    
+    $player_mapping = $_SESSION['player_mapping'];
+    $matchday_date = null;
+    
+    // Get matchday date
+    foreach ($GLOBALS['matchdays'] as $md) {
+        if ($md['id'] == $matchday_id) {
+            $matchday_date = $md['date'];
+            break;
+        }
+    }
+    
+    try {
+        // Create temporary file for PDO
+        $tmp_file = tempnam(sys_get_temp_dir(), 'sqlite_import_');
+        file_put_contents($tmp_file, base64_decode($_SESSION['sqlite_data']));
+        
+        $db = new PDO('sqlite:' . $tmp_file);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Get all sets for this matchday
+        $matchday_sets = getMatchdaySets($matchday_id);
+        
+        $matches_info = [];
+        
+        foreach ($matchday_sets as $set) {
+            $player1_csv_id = $set['player1_id'];
+            $player2_csv_id = $set['player2_id'];
+            
+            // Reverse lookup: CSV player ID -> SQLite player ID
+            $player1_sqlite_id = array_search($player1_csv_id, $player_mapping);
+            $player2_sqlite_id = array_search($player2_csv_id, $player_mapping);
+            
+            $match_info = [
+                'set' => $set,
+                'matched' => false,
+                'stats' => null,
+                'sqlite_set_id' => null,
+                'sqlite_created_at' => null
+            ];
+            
+            if ($player1_sqlite_id !== false && $player2_sqlite_id !== false) {
+                // Try to find matching set
+                $result = findSetStatsWithInfo($db, $player1_sqlite_id, $player2_sqlite_id, $set['legs1'], $set['legs2'], $matchday_date);
+                
+                if ($result) {
+                    $match_info['matched'] = true;
+                    $match_info['stats'] = $result['stats'];
+                    $match_info['sqlite_set_id'] = $result['set_id'];
+                    $match_info['sqlite_created_at'] = $result['created_at'];
+                }
+            }
+            
+            $matches_info[] = $match_info;
+        }
+        
+        // Clean up temporary file
+        unlink($tmp_file);
+        
+        return $matches_info;
+        
+    } catch (Exception $e) {
+        // Clean up temporary file on error
+        if (isset($tmp_file) && file_exists($tmp_file)) {
+            unlink($tmp_file);
+        }
+        $_SESSION['error'] = 'Matching failed: ' . $e->getMessage();
+        return [];
+    }
+}
+
+function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $expected_legs2, $matchday_date = null) {
+    // Build query to find all sets where these two players played
+    $date_filter = '';
+    $params = [$player1_id, $player2_id];
+    
+    if ($matchday_date && !empty($matchday_date)) {
+        $date_filter = " AND s.created_at >= date(?, '-7 days') AND s.created_at <= date(?, '+7 days')";
+        $params[] = $matchday_date;
+        $params[] = $matchday_date;
+    }
+    
+    $stmt = $db->prepare("
+        SELECT DISTINCT s.id as set_id, s.setNummer, s.created_at
+        FROM xGameMpSet s
+        JOIN xGameMpLeg l ON l.setId = s.id
+        JOIN xGameSpieler gs ON gs.legId = l.id
+        WHERE gs.spielerId IN (?, ?)
+        $date_filter
+        GROUP BY s.id
+        HAVING COUNT(DISTINCT gs.spielerId) = 2
+        ORDER BY s.created_at DESC
+    ");
+    $stmt->execute($params);
+    $potential_sets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // For each potential set, check if the leg counts match
+    foreach ($potential_sets as $set_info) {
+        $set_id = $set_info['set_id'];
+        
+        // Count legs won by each player
+        $stmt = $db->prepare("
+            SELECT l.siegerId, COUNT(*) as legs_won
+            FROM xGameMpLeg l
+            WHERE l.setId = ?
+            GROUP BY l.siegerId
+        ");
+        $stmt->execute([$set_id]);
+        $leg_counts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $legs1 = 0;
+        $legs2 = 0;
+        
+        foreach ($leg_counts as $lc) {
+            if ($lc['siegerId'] == $player1_id) {
+                $legs1 = $lc['legs_won'];
+            } elseif ($lc['siegerId'] == $player2_id) {
+                $legs2 = $lc['legs_won'];
+            }
+        }
+        
+        // Check if this matches our expected leg counts
+        if ($legs1 == $expected_legs1 && $legs2 == $expected_legs2) {
+            // This is our set! Extract stats and return with info
+            $stats = extractSetStats($db, $set_id, $player1_id, $player2_id);
+            
+            return [
+                'set_id' => $set_id,
+                'created_at' => $set_info['created_at'],
+                'stats' => $stats
+            ];
+        }
+    }
+    
+    return null;
+}
+
 function getPlayerName($player_id) {
-    global $players;
+    global $csv_players;
     if ($player_id == 0) return 'TBD';
-    if (isset($players[$player_id])) {
-        $p = $players[$player_id];
+    if (isset($csv_players[$player_id])) {
+        $p = $csv_players[$player_id];
         return $p['nickname'] ? $p['name'] . ' (' . $p['nickname'] . ')' : $p['name'];
     }
     return 'Unknown';
 }
 
-function findBestMatch($our_player_name, $sqlite_players) {
-    // Simple similarity matching - find most similar name
-    $best_match = null;
-    $best_score = 0;
+function resetImport() {
+    // Clear session data
+    unset($_SESSION['sqlite_data']);
+    unset($_SESSION['player_mapping']);
+    unset($_SESSION['selected_matchday']);
+    unset($_SESSION['import_step']);
     
-    foreach ($sqlite_players as $sp) {
-        // Calculate similarity
-        similar_text(strtolower($our_player_name), strtolower($sp['name']), $percent);
-        
-        if ($percent > $best_score) {
-            $best_score = $percent;
-            $best_match = $sp['id'];
-        }
-    }
-    
-    // Only return match if similarity is reasonable (>50%)
-    return $best_score > 50 ? $best_match : null;
+    header('Location: import_stats.php');
+    exit;
 }
 
-function getPhaseLabel($phase) {
-    $labels = [
-        'group' => 'Group Phase',
-        'semi1' => 'Semi-Final 1',
-        'semi2' => 'Semi-Final 2',
-        'third' => '3rd Place',
-        'final' => 'Final'
-    ];
-    return isset($labels[$phase]) ? $labels[$phase] : $phase;
-}
-
-function setHasDetailedStats($set_id) {
-    global $sets_file;
-    
-    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-        $header = fgetcsv($fp);
-        while (($row = fgetcsv($fp)) !== false) {
-            if ($row[0] == $set_id) {
-                // Check if any detailed stats are filled (darts, 3da, dbl attempts, highscore, highco)
-                $has_stats = (intval($row[6]) > 0 || intval($row[7]) > 0 ||  // darts
-                             floatval($row[8]) > 0 || floatval($row[9]) > 0 ||  // 3da
-                             intval($row[10]) > 0 || intval($row[11]) > 0 ||  // dbl attempts
-                             intval($row[12]) > 0 || intval($row[13]) > 0 ||  // highscore
-                             intval($row[14]) > 0 || intval($row[15]) > 0);   // highco
-                fclose($fp);
-                return $has_stats;
-            }
-        }
-        fclose($fp);
-    }
-    return false;
-}
-
-$players = loadPlayers();
-$matchdays = loadMatchdays();
-$all_matches = loadMatches();
-
-// Filter matches with results
-$matches_with_results = [];
-foreach ($all_matches as $match) {
-    if (($match['sets1'] > 0 || $match['sets2'] > 0) && $match['player1id'] != 0 && $match['player2id'] != 0) {
-        $matches_with_results[] = $match;
-    }
-}
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Import Statistics - Darts League</title>
+    <title>Import Statistics</title>
     <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #dc3545;
+            color: #721c24;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .step-indicator {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .step-indicator .step {
+            display: inline-block;
+            padding: 5px 15px;
+            margin: 0 5px;
+            background: #ddd;
+            border-radius: 3px;
+        }
+        .step-indicator .step.active {
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .step-indicator .step.completed {
+            background: #28a745;
+            color: white;
+        }
+        .set-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .set-item.has-stats {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        .set-item.unmatched {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        select.player-mapping {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        .selection-buttons {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .selection-buttons button {
+            margin-right: 10px;
+        }
+    </style>
     <script>
-        function toggleMatchdaySets(matchdayId, checked) {
-            // Check/uncheck all matches in this matchday
-            const matchCheckboxes = document.querySelectorAll('.matchday-' + matchdayId + '-match');
-            matchCheckboxes.forEach(cb => cb.checked = checked);
-            
-            // Check/uncheck all sets in this matchday
-            const setCheckboxes = document.querySelectorAll('.matchday-' + matchdayId + '-set');
-            setCheckboxes.forEach(cb => cb.checked = checked);
+        function selectAllSets() {
+            var checkboxes = document.querySelectorAll('input[name="selected_sets[]"]');
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = true;
+            });
         }
         
-        function toggleMatchSets(matchId, checked) {
-            const checkboxes = document.querySelectorAll('.match-' + matchId + '-set');
-            checkboxes.forEach(cb => cb.checked = checked);
+        function selectNoneSets() {
+            var checkboxes = document.querySelectorAll('input[name="selected_sets[]"]');
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = false;
+            });
+        }
+        
+        function selectWithoutStats() {
+            var checkboxes = document.querySelectorAll('input[name="selected_sets[]"]');
+            checkboxes.forEach(function(checkbox) {
+                var setItem = checkbox.closest('.set-item');
+                if (setItem && !setItem.classList.contains('has-stats')) {
+                    checkbox.checked = true;
+                } else {
+                    checkbox.checked = false;
+                }
+            });
         }
     </script>
 </head>
 <body>
-    <?php
-    // Navigation
-    ?>
-    <nav style="background-color: #f0f0f0; padding: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd;">
+    
+    <nav>
         <a href="index.php">Tournament Overview</a>
         <?php if (!empty($matchdays)): ?>
             <?php foreach ($matchdays as $md): ?>
@@ -358,300 +879,351 @@ foreach ($all_matches as $match) {
         <?php endif; ?>
     </nav>
     
-    <h1>Import Match Statistics</h1>
+    <h1>Import Statistics from Scoring App</h1>
     
-    <?php if ($step == 1): ?>
-        <!-- Step 1: Select Matches/Sets -->
-        <div class="info">
-            <strong>Step 1 of 3:</strong> Select the matches and sets for which you want to import statistics from the SQLite file.
-        </div>
-        
-        <?php if (empty($matches_with_results)): ?>
-            <div class="warning">
-                <strong>No matches with results found.</strong> Play some matches first before importing statistics.
-            </div>
-            
-            <?php if (isset($_SESSION['error'])): ?>
-                <div class="warning">
-                    <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-                </div>
-            <?php endif; ?>
-            
-        <?php else: ?>
-            <form method="POST">
-                <?php
-                // Group matches by matchday
-                $matches_by_matchday = [];
-                foreach ($matches_with_results as $match) {
-                    $matches_by_matchday[$match['matchdayid']][] = $match;
-                }
-                
-                foreach ($matches_by_matchday as $md_id => $md_matches):
-                    $matchday = array_filter($matchdays, function($m) use ($md_id) {
-                        return $m['id'] == $md_id;
-                    });
-                    $matchday = array_values($matchday)[0];
-                ?>
-                
-                <div class="section">
-                    <h2>
-                        <label style="font-weight: normal; font-size: 0.9em; margin-right: 15px;">
-                            <input type="checkbox" onclick="toggleMatchdaySets(<?php echo $md_id; ?>, this.checked)">
-                            Select All
-                        </label>
-                        Matchday <?php echo $md_id; ?>
-                        <?php if ($matchday['date']): ?>
-                            - <?php echo $matchday['date']; ?>
-                        <?php endif; ?>
-                    </h2>
-                    
-                    <table>
-                        <tr>
-                            <th>Select</th>
-                            <th>Match</th>
-                            <th>Players</th>
-                            <th>Score</th>
-                            <th>Sets</th>
-                        </tr>
-                        <?php foreach ($md_matches as $match): 
-                            $sets = loadSets($match['id']);
-                        ?>
-                        <tr>
-                            <td>
-                                <input type="checkbox" 
-                                       name="selected_matches[]" 
-                                       value="<?php echo $match['id']; ?>"
-                                       class="matchday-<?php echo $md_id; ?>-match"
-                                       onclick="toggleMatchSets(<?php echo $match['id']; ?>, this.checked)">
-                            </td>
-                            <td>
-                                <?php echo getPhaseLabel($match['phase']); ?>
-                                (Match #<?php echo $match['id']; ?>)
-                            </td>
-                            <td>
-                                <?php echo getPlayerName($match['player1id']); ?> vs 
-                                <?php echo getPlayerName($match['player2id']); ?>
-                            </td>
-                            <td><?php echo $match['sets1']; ?> : <?php echo $match['sets2']; ?></td>
-                            <td>
-                                <?php if (!empty($sets)): ?>
-                                    <?php foreach ($sets as $idx => $set): 
-                                        $has_stats = setHasDetailedStats($set['id']);
-                                    ?>
-                                        <label style="display: block; margin: 2px 0; <?php echo $has_stats ? 'color: #ff6600;' : ''; ?>">
-                                            <input type="checkbox" 
-                                                   name="selected_sets[]" 
-                                                   value="<?php echo $set['id']; ?>"
-                                                   class="matchday-<?php echo $md_id; ?>-set match-<?php echo $match['id']; ?>-set">
-                                            Set <?php echo ($idx + 1); ?>: 
-                                            <?php echo $set['legs1']; ?>-<?php echo $set['legs2']; ?>
-                                            <?php if ($has_stats): ?>
-                                                <strong title="This set already has detailed statistics">[! Has Stats]</strong>
-                                            <?php endif; ?>
-                                        </label>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <em>No sets recorded</em>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </table>
-                </div>
-                
-                <?php endforeach; ?>
-                
-                <div class="warning" style="display: none;" id="stats-warning">
-                    <strong>Warning:</strong> Some selected sets already have detailed statistics. Importing will overwrite existing data.
-                </div>
-                
-                <script>
-                    // Show warning if sets with stats are checked
-                    document.addEventListener('change', function(e) {
-                        if (e.target.type === 'checkbox' && e.target.name === 'selected_sets[]') {
-                            const checkedWithStats = document.querySelectorAll('input[name="selected_sets[]"]:checked');
-                            let hasStats = false;
-                            checkedWithStats.forEach(cb => {
-                                if (cb.parentElement.querySelector('strong[title*="statistics"]')) {
-                                    hasStats = true;
-                                }
-                            });
-                            document.getElementById('stats-warning').style.display = hasStats ? 'block' : 'none';
-                        }
-                    });
-                </script>
-                
-                <input type="submit" name="select_matches" value="Next: Upload SQLite File">
-            </form>
-        <?php endif; ?>
-        
-    <?php elseif ($step == 2): ?>
-        <!-- Step 2: Upload SQLite File -->
-        <div class="info">
-            <strong>Step 2 of 3:</strong> Upload the SQLite database file containing the match statistics.
-        </div>
-        
-        <?php
-        $selected_count = isset($_SESSION['selected_sets']) ? count($_SESSION['selected_sets']) : 0;
-        ?>
-        
-        <div class="section">
-            <p><strong>Selected sets:</strong> <?php echo $selected_count; ?></p>
-            
-            <?php if (isset($error)): ?>
-                <div class="warning"><?php echo $error; ?></div>
-            <?php endif; ?>
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="success"><?php echo $_SESSION['success']; unset($_SESSION['success']); ?></div>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="error"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
+    <?php endif; ?>
+    
+    <div class="step-indicator">
+        <span class="step <?php echo $_SESSION['import_step'] == 'upload' ? 'active' : 'completed'; ?>">1. Upload File</span>
+        <span class="step <?php echo $_SESSION['import_step'] == 'map_players' ? 'active' : ($_SESSION['import_step'] != 'upload' ? 'completed' : ''); ?>">2. Map Players</span>
+        <span class="step <?php echo $_SESSION['import_step'] == 'select_matchday' ? 'active' : (in_array($_SESSION['import_step'], ['match_sets', 'confirm_import', 'complete']) ? 'completed' : ''); ?>">3. Select Matchday</span>
+        <span class="step <?php echo $_SESSION['import_step'] == 'match_sets' ? 'active' : (in_array($_SESSION['import_step'], ['confirm_import', 'complete']) ? 'completed' : ''); ?>">4. Match Sets</span>
+        <span class="step <?php echo $_SESSION['import_step'] == 'confirm_import' ? 'active' : ($_SESSION['import_step'] == 'complete' ? 'completed' : ''); ?>">5. Confirm & Import</span>
+    </div>
+    
+    <?php if ($_SESSION['import_step'] == 'upload'): ?>
+        <!-- Step 1: Upload SQLite File -->
+        <div class="form-section">
+            <h2>Step 1: Upload Scoring App Database</h2>
+            <p>Please upload the SQLite database file (.db or .mdt) from your scoring application.</p>
             
             <form method="POST" enctype="multipart/form-data">
-                <label><strong>Select SQLite Database File:</strong></label><br>
-                <input type="file" name="sqlite_file" accept=".db,.sqlite,.sqlite3,.mdt" required><br><br>
-                
-                <input type="submit" name="upload_file" value="Upload and Process">
-                <a href="import_stats.php?step=1"><button type="button">Back</button></a>
+                <label>Select SQLite File:</label><br>
+                <input type="file" name="sqlite_file" accept=".db,.mdt,.sqlite,.sqlite3" required><br><br>
+                <input type="submit" name="upload_file" value="Upload and Continue">
             </form>
         </div>
         
-    <?php elseif ($step == 3): ?>
-        <!-- Step 3: Match Players -->
-        <div class="info">
-            <strong>Step 3 of 4:</strong> Match your players with the players in the SQLite database.
-        </div>
-        
-        <?php if (isset($_SESSION['error'])): ?>
-            <div class="warning">
-                <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php
-        $sqlite_players = isset($_SESSION['sqlite_players']) ? $_SESSION['sqlite_players'] : [];
-        
-        if (empty($sqlite_players)):
+    <?php elseif ($_SESSION['import_step'] == 'map_players'): ?>
+        <!-- Step 2: Map Players -->
+        <?php 
+        $sqlite_players = getSQLitePlayers();
+        if (empty($sqlite_players)) {
+            echo '<div class="error">No players found in the SQLite database.</div>';
+            $_SESSION['import_step'] = 'upload';
+        } else {
         ?>
-            <div class="warning">
-                <strong>No players found in SQLite database.</strong> The database might be empty or have a different structure.
-            </div>
-            <a href="import_stats.php?step=1"><button type="button">Start Over</button></a>
-        <?php else: ?>
-            <div class="section">
-                <p><strong>Players in SQLite database:</strong> <?php echo count($sqlite_players); ?></p>
-                
-                <form method="POST">
-                    <table>
-                        <tr>
-                            <th>Your Player</th>
-                            <th>Match with SQLite Player</th>
-                        </tr>
-                        <?php 
-                        // Get unique players involved in selected sets
-                        $involved_players = [];
-                        $selected_sets = isset($_SESSION['selected_sets']) ? $_SESSION['selected_sets'] : [];
-                        
-                        // Load all sets to find which players are involved
-                        if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                            $header = fgetcsv($fp);
-                            while (($row = fgetcsv($fp)) !== false) {
-                                if (in_array($row[0], $selected_sets)) { // set id
-                                    $involved_players[$row[2]] = true; // player1id
-                                    $involved_players[$row[3]] = true; // player2id
-                                }
-                            }
-                            fclose($fp);
-                        }
-                        
-                        foreach ($involved_players as $player_id => $dummy):
-                            if ($player_id == 0) continue;
-                            
-                            $player_name = getPlayerName($player_id);
-                            $suggested_match = findBestMatch($player_name, $sqlite_players);
-                        ?>
-                        <tr>
-                            <td><strong><?php echo $player_name; ?></strong></td>
-                            <td>
-                                <select name="player_mapping[<?php echo $player_id; ?>]" required>
-                                    <option value="">-- Select Player --</option>
-                                    <?php foreach ($sqlite_players as $sp): ?>
-                                        <option value="<?php echo $sp['id']; ?>" 
-                                                <?php echo ($sp['id'] == $suggested_match) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($sp['name']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </table>
-                    
-                    <input type="submit" name="match_players" value="Next: Import Data">
-                    <a href="import_stats.php?step=2"><button type="button">Back</button></a>
-                </form>
-            </div>
+        <div class="form-section">
+            <h2>Step 2: Map Players</h2>
+            <p>Match each player from your tournament to their corresponding entry in the scoring app database.</p>
+            <p class="warning"><strong>Note:</strong> Each scoring app player can only be mapped once. Make sure no duplicates exist.</p>
             
-            <script>
-                // Check for duplicate selections
-                document.querySelectorAll('select[name^="player_mapping"]').forEach(select => {
-                    select.addEventListener('change', function() {
-                        const selects = document.querySelectorAll('select[name^="player_mapping"]');
-                        const values = Array.from(selects).map(s => s.value).filter(v => v !== '');
-                        const duplicates = values.filter((v, i) => values.indexOf(v) !== i);
-                        
-                        selects.forEach(s => {
-                            if (duplicates.includes(s.value) && s.value !== '') {
-                                s.style.borderColor = 'red';
-                                s.style.backgroundColor = '#ffe0e0';
-                            } else {
-                                s.style.borderColor = '';
-                                s.style.backgroundColor = '';
-                            }
-                        });
-                    });
-                });
-            </script>
-        <?php endif; ?>
+            <form method="POST">
+                <table>
+                    <tr>
+                        <th>Tournament Player</th>
+                        <th>Scoring App Player</th>
+                    </tr>
+                    <?php foreach ($csv_players as $player): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars(getPlayerName($player['id'])); ?></td>
+                        <td>
+                            <select name="player_mapping[<?php echo $player['id']; ?>]" class="player-mapping" required>
+                                <option value="">-- Select Player --</option>
+                                <?php 
+                                $best_match = findBestMatch($player, $sqlite_players);
+                                foreach ($sqlite_players as $sp): 
+                                ?>
+                                <option value="<?php echo $sp['id']; ?>" <?php echo ($sp['id'] == $best_match) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($sp['name']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </table>
+                <br>
+                <input type="submit" name="confirm_players" value="Confirm Player Mapping">
+                <input type="submit" name="reset_import" value="Cancel" onclick="return confirm('This will cancel the import. Continue?');">
+            </form>
+        </div>
+        <?php } ?>
         
-    <?php elseif ($step == 4): ?>
-        <!-- Step 4: Preview/Process (Placeholder for now) -->
-        <div class="info">
-            <strong>Step 4 of 4:</strong> Review and import the data.
+    <?php elseif ($_SESSION['import_step'] == 'select_matchday'): ?>
+        <!-- Step 3: Select Matchday -->
+        <div class="form-section">
+            <h2>Step 3: Select Matchday</h2>
+            <p>Choose which matchday you want to import statistics for. Only complete matchdays are shown.</p>
+            
+            <form method="POST">
+                <table>
+                    <tr>
+                        <th>Select</th>
+                        <th>Matchday</th>
+                        <th>Date</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                    </tr>
+                    <?php foreach ($matchdays as $md): ?>
+                    <?php if (isMatchdayComplete($md['id'])): ?>
+                    <tr>
+                        <td>
+                            <input type="radio" name="matchday_id" value="<?php echo $md['id']; ?>" required>
+                        </td>
+                        <td>Matchday <?php echo $md['id']; ?></td>
+                        <td><?php echo $md['date'] ? htmlspecialchars($md['date']) : '<em>Not set</em>'; ?></td>
+                        <td><?php echo $md['location'] ? htmlspecialchars($md['location']) : '<em>Not set</em>'; ?></td>
+                        <td><span style="color: green;">✓ Complete</span></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
+                </table>
+                <br>
+                <input type="submit" name="select_matchday" value="Continue to Set Selection">
+                <input type="submit" name="reset_import" value="Cancel" onclick="return confirm('This will cancel the import. Continue?');">
+            </form>
         </div>
         
-        <div class="section">
-            <p><strong>Player mapping completed!</strong></p>
+    <?php elseif ($_SESSION['import_step'] == 'match_sets'): ?>
+        <!-- Step 4: Match Sets and Show Preview -->
+        <?php 
+        $selected_matchday = $_SESSION['selected_matchday'];
+        $matches_info = matchAllSets($selected_matchday);
+        
+        // Count matched and unmatched
+        $matched_count = 0;
+        $unmatched_count = 0;
+        foreach ($matches_info as $info) {
+            if ($info['matched']) {
+                $matched_count++;
+            } else {
+                $unmatched_count++;
+            }
+        }
+        ?>
+        <div class="form-section">
+            <h2>Step 4: Match Sets</h2>
+            <p>Review the automatic matching between your tournament sets and the SQLite database.</p>
             
-            <?php if (isset($_SESSION['player_mapping'])): ?>
-                <h3>Player Matches:</h3>
-                <ul>
-                    <?php 
-                    foreach ($_SESSION['player_mapping'] as $our_id => $sqlite_id):
-                        $sqlite_name = 'Unknown';
-                        foreach ($_SESSION['sqlite_players'] as $sp) {
-                            if ($sp['id'] == $sqlite_id) {
-                                $sqlite_name = $sp['name'];
-                                break;
-                            }
-                        }
-                    ?>
-                        <li><?php echo getPlayerName($our_id); ?> → <?php echo htmlspecialchars($sqlite_name); ?></li>
-                    <?php endforeach; ?>
-                </ul>
+            <?php if ($matched_count > 0): ?>
+                <div class="success">
+                    <strong>✓ <?php echo $matched_count; ?> set(s) successfully matched</strong>
+                </div>
             <?php endif; ?>
             
-            <p><em>Data import processing will be implemented next.</em></p>
+            <?php if ($unmatched_count > 0): ?>
+                <div class="warning">
+                    <strong>⚠ <?php echo $unmatched_count; ?> set(s) could not be matched</strong>
+                    <br>These sets will be skipped during import.
+                </div>
+            <?php endif; ?>
             
-            <a href="import_stats.php?step=1"><button type="button">Start Over</button></a>
-            <a href="index.php"><button type="button">Back to Home</button></a>
+            <form method="POST">
+                <?php if (empty($matches_info)): ?>
+                    <p>No sets found for this matchday.</p>
+                <?php else: ?>
+                    <div class="selection-buttons">
+                        <strong>Quick Select:</strong>
+                        <button type="button" onclick="selectAllSets()">Select All Matched</button>
+                        <button type="button" onclick="selectNoneSets()">Select None</button>
+                    </div>
+                    
+                    <?php 
+                    $current_match = null;
+                    foreach ($matches_info as $info): 
+                        $set = $info['set'];
+                        
+                        if ($current_match != $set['match_id']):
+                            if ($current_match !== null) echo '</div>';
+                            $current_match = $set['match_id'];
+                            echo '<h3>Match: ' . htmlspecialchars(getPlayerName($set['match']['player1_id'])) . ' vs ' . htmlspecialchars(getPlayerName($set['match']['player2_id'])) . '</h3>';
+                            echo '<div style="margin-left: 20px;">';
+                        endif;
+                        
+                        $has_stats = hasStats($set);
+                        $is_matched = $info['matched'];
+                    ?>
+                    <div class="set-item <?php echo $has_stats ? 'has-stats' : ''; ?> <?php echo !$is_matched ? 'unmatched' : ''; ?>">
+                        <?php if ($is_matched): ?>
+                            <label>
+                                <input type="checkbox" name="selected_sets[]" value="<?php echo $set['id']; ?>" checked>
+                                <strong>Set <?php echo $set['id']; ?>:</strong>
+                                <?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?> 
+                                (<?php echo $set['legs1']; ?>) 
+                                vs 
+                                <?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?> 
+                                (<?php echo $set['legs2']; ?>)
+                                <?php if ($has_stats): ?>
+                                    <span style="color: #856404;"> ⚠ Has existing stats - will be overwritten</span>
+                                <?php endif; ?>
+                            </label>
+                            <div style="margin-top: 8px; padding: 8px; background: #e8f5e9; border-left: 3px solid #4caf50; font-size: 0.9em;">
+                                <strong>✓ Matched SQLite Set:</strong> Created at <?php echo $info['sqlite_created_at']; ?>
+                                <br>
+                                <strong>Stats to import:</strong>
+                                3DA: <?php echo $info['stats']['3da1']; ?> / <?php echo $info['stats']['3da2']; ?> |
+                                Darts: <?php echo $info['stats']['darts1']; ?> / <?php echo $info['stats']['darts2']; ?> |
+                                Dbl Attempts: <?php echo $info['stats']['dblattempts1']; ?> / <?php echo $info['stats']['dblattempts2']; ?> |
+                                High Score: <?php echo $info['stats']['highscore1']; ?> / <?php echo $info['stats']['highscore2']; ?> |
+                                High CO: <?php echo $info['stats']['highco1']; ?> / <?php echo $info['stats']['highco2']; ?>
+                            </div>
+                        <?php else: ?>
+                            <div style="opacity: 0.6;">
+                                <strong>Set <?php echo $set['id']; ?>:</strong>
+                                <?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?> 
+                                (<?php echo $set['legs1']; ?>) 
+                                vs 
+                                <?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?> 
+                                (<?php echo $set['legs2']; ?>)
+                                <br>
+                                <span style="color: #dc3545;">✗ No matching set found in database</span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php 
+                    endforeach;
+                    if ($current_match !== null) echo '</div>';
+                    ?>
+                <?php endif; ?>
+                <br>
+                <?php if ($matched_count > 0): ?>
+                    <input type="submit" name="confirm_matches" value="Continue to Final Confirmation">
+                <?php endif; ?>
+                <input type="submit" name="reset_import" value="Cancel" onclick="return confirm('This will cancel the import. Continue?');">
+            </form>
         </div>
         
+    <?php elseif ($_SESSION['import_step'] == 'confirm_import'): ?>
+        <!-- Step 5: Final Confirmation Before Import -->
+        <?php 
+        $selected_matchday = $_SESSION['selected_matchday'];
+        $selected_sets = $_SESSION['selected_sets'];
+        
+        // Re-match to show final preview
+        $matches_info = matchAllSets($selected_matchday);
+        
+        // Filter to only show selected sets
+        $selected_matches = [];
+        foreach ($matches_info as $info) {
+            if (in_array($info['set']['id'], $selected_sets) && $info['matched']) {
+                $selected_matches[] = $info;
+            }
+        }
+        ?>
+        <div class="form-section">
+            <h2>Step 5: Final Confirmation</h2>
+            <p>Review the statistics that will be imported. Click "Import Now" to proceed.</p>
+            
+            <div class="warning">
+                <strong>⚠ Warning:</strong> This will overwrite existing statistics for the selected sets. This action cannot be undone.
+            </div>
+            
+            <h3>Import Summary</h3>
+            <p><strong>Matchday:</strong> <?php echo $selected_matchday; ?></p>
+            <p><strong>Sets to import:</strong> <?php echo count($selected_matches); ?></p>
+            
+            <?php if (empty($selected_matches)): ?>
+                <p>No sets selected for import.</p>
+                <form method="POST">
+                    <input type="submit" name="reset_import" value="Start Over">
+                </form>
+            <?php else: ?>
+                <?php 
+                $current_match = null;
+                foreach ($selected_matches as $info): 
+                    $set = $info['set'];
+                    
+                    if ($current_match != $set['match_id']):
+                        if ($current_match !== null) echo '</div>';
+                        $current_match = $set['match_id'];
+                        echo '<h3>Match: ' . htmlspecialchars(getPlayerName($set['match']['player1_id'])) . ' vs ' . htmlspecialchars(getPlayerName($set['match']['player2_id'])) . '</h3>';
+                        echo '<div style="margin-left: 20px;">';
+                    endif;
+                ?>
+                <div class="set-item">
+                    <strong>Set <?php echo $set['id']; ?>:</strong>
+                    <?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?> 
+                    (<?php echo $set['legs1']; ?>) 
+                    vs 
+                    <?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?> 
+                    (<?php echo $set['legs2']; ?>)
+                    
+                    <table style="margin-top: 10px; width: 100%; font-size: 0.9em;">
+                        <tr>
+                            <th>Player</th>
+                            <th>3DA</th>
+                            <th>Darts</th>
+                            <th>Dbl Att.</th>
+                            <th>High Score</th>
+                            <th>High CO</th>
+                        </tr>
+                        <tr>
+                            <td><?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?></td>
+                            <td><?php echo $info['stats']['3da1']; ?></td>
+                            <td><?php echo $info['stats']['darts1']; ?></td>
+                            <td><?php echo $info['stats']['dblattempts1']; ?></td>
+                            <td><?php echo $info['stats']['highscore1']; ?></td>
+                            <td><?php echo $info['stats']['highco1']; ?></td>
+                        </tr>
+                        <tr>
+                            <td><?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?></td>
+                            <td><?php echo $info['stats']['3da2']; ?></td>
+                            <td><?php echo $info['stats']['darts2']; ?></td>
+                            <td><?php echo $info['stats']['dblattempts2']; ?></td>
+                            <td><?php echo $info['stats']['highscore2']; ?></td>
+                            <td><?php echo $info['stats']['highco2']; ?></td>
+                        </tr>
+                    </table>
+                </div>
+                <?php 
+                endforeach;
+                if ($current_match !== null) echo '</div>';
+                ?>
+                
+                <form method="POST">
+                    <br>
+                    <input type="submit" name="import_stats" value="Import Now" onclick="return confirm('This will import the statistics shown above. Any existing data will be overwritten. Continue?');">
+                    <input type="submit" name="reset_import" value="Cancel" onclick="return confirm('This will cancel the import. Continue?');">
+                </form>
+            <?php endif; ?>
+        </div>
+        
+    <?php elseif ($_SESSION['import_step'] == 'complete'): ?>
+        <!-- Import Complete -->
+        <div class="form-section">
+            <h2>Import Complete!</h2>
+            <div class="success">
+                Statistics have been successfully imported.
+            </div>
+            
+            <p>
+                <a href="matchdays.php?view=<?php echo $_SESSION['selected_matchday']; ?>"><button>View Matchday <?php echo $_SESSION['selected_matchday']; ?></button></a>
+                <a href="index.php"><button>Back to Tournament Overview</button></a>
+            </p>
+            
+            <form method="POST">
+                <input type="submit" name="reset_import" value="Import Another File">
+            </form>
+        </div>
     <?php endif; ?>
     
     <hr style="margin-top: 40px;">
     <p>
         <a href="index.php">Home</a> | 
         <a href="matchdays.php">Matches Overview</a>
-        <?php if ($is_admin): ?>
+        <?php if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']): ?>
             | <a href="players.php">Player Management</a>
             | <a href="matchday_setup.php">Tournament Setup</a>
             | <a href="index.php?logout=1">Logout</a>
+        <?php else: ?>
+            | <a href="index.php#login">Login</a>
         <?php endif; ?>
     </p>
 </body>
