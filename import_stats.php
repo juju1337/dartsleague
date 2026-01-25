@@ -231,11 +231,11 @@ function handleStatsImport() {
             $player1_csv_id = $csv_set['player1_id'];
             $player2_csv_id = $csv_set['player2_id'];
             
-            // Reverse lookup: CSV player ID -> SQLite player ID
-            $player1_sqlite_id = array_search($player1_csv_id, $player_mapping);
-            $player2_sqlite_id = array_search($player2_csv_id, $player_mapping);
+            // Get SQLite player IDs from mapping
+            $player1_sqlite_id = isset($player_mapping[$player1_csv_id]) ? $player_mapping[$player1_csv_id] : null;
+            $player2_sqlite_id = isset($player_mapping[$player2_csv_id]) ? $player_mapping[$player2_csv_id] : null;
             
-            if ($player1_sqlite_id === false || $player2_sqlite_id === false) {
+            if ($player1_sqlite_id === null || $player2_sqlite_id === null) {
                 continue;
             }
             
@@ -340,10 +340,18 @@ function findSetStats($db, $player1_id, $player2_id, $expected_legs1, $expected_
             }
         }
         
-        // Check if this matches our expected leg counts
-        if ($legs1 == $expected_legs1 && $legs2 == $expected_legs2) {
-            // This is our set! Now extract all stats
-            return extractSetStats($db, $set_id, $player1_id, $player2_id);
+        // Check if this matches our expected leg counts (in either order)
+        $match_forward = ($legs1 == $expected_legs1 && $legs2 == $expected_legs2);
+        $match_reverse = ($legs1 == $expected_legs2 && $legs2 == $expected_legs1);
+        
+        if ($match_forward || $match_reverse) {
+            // This is our set! Extract stats
+            // If reversed, swap the player IDs when extracting stats
+            if ($match_reverse) {
+                return extractSetStats($db, $set_id, $player2_id, $player1_id);
+            } else {
+                return extractSetStats($db, $set_id, $player1_id, $player2_id);
+            }
         }
     }
     
@@ -627,28 +635,37 @@ function matchAllSets($matchday_id) {
             $player1_csv_id = $set['player1_id'];
             $player2_csv_id = $set['player2_id'];
             
-            // Reverse lookup: CSV player ID -> SQLite player ID
-            $player1_sqlite_id = array_search($player1_csv_id, $player_mapping);
-            $player2_sqlite_id = array_search($player2_csv_id, $player_mapping);
+            // Get SQLite player IDs from mapping
+            // The mapping is: player_mapping[csv_player_id] = sqlite_player_id
+            $player1_sqlite_id = isset($player_mapping[$player1_csv_id]) ? $player_mapping[$player1_csv_id] : null;
+            $player2_sqlite_id = isset($player_mapping[$player2_csv_id]) ? $player_mapping[$player2_csv_id] : null;
             
             $match_info = [
                 'set' => $set,
                 'matched' => false,
                 'stats' => null,
                 'sqlite_set_id' => null,
-                'sqlite_created_at' => null
+                'sqlite_created_at' => null,
+                'debug' => []
             ];
             
-            if ($player1_sqlite_id !== false && $player2_sqlite_id !== false) {
+            if ($player1_sqlite_id !== null && $player2_sqlite_id !== null) {
                 // Try to find matching set
                 $result = findSetStatsWithInfo($db, $player1_sqlite_id, $player2_sqlite_id, $set['legs1'], $set['legs2'], $matchday_date);
                 
-                if ($result) {
+                if ($result && isset($result['stats']) && $result['stats'] !== null) {
                     $match_info['matched'] = true;
                     $match_info['stats'] = $result['stats'];
                     $match_info['sqlite_set_id'] = $result['set_id'];
                     $match_info['sqlite_created_at'] = $result['created_at'];
                 }
+                
+                // Always store debug info
+                if (isset($result['debug'])) {
+                    $match_info['debug'] = $result['debug'];
+                }
+            } else {
+                $match_info['debug'][] = "Player mapping failed: Player1=$player1_csv_id -> SQLite=" . ($player1_sqlite_id !== null ? $player1_sqlite_id : 'NOT FOUND') . ", Player2=$player2_csv_id -> SQLite=" . ($player2_sqlite_id !== null ? $player2_sqlite_id : 'NOT FOUND');
             }
             
             $matches_info[] = $match_info;
@@ -674,10 +691,15 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
     $date_filter = '';
     $params = [$player1_id, $player2_id];
     
+    $debug_info = [];
+    $debug_info[] = "Searching for: Player1 ID=$player1_id, Player2 ID=$player2_id, Legs: $expected_legs1-$expected_legs2";
+    $debug_info[] = "Matchday date: " . ($matchday_date ?: 'Not set');
+    
     if ($matchday_date && !empty($matchday_date)) {
         $date_filter = " AND s.created_at >= date(?, '-7 days') AND s.created_at <= date(?, '+7 days')";
         $params[] = $matchday_date;
         $params[] = $matchday_date;
+        $debug_info[] = "Date filter: ±7 days from $matchday_date";
     }
     
     $stmt = $db->prepare("
@@ -693,6 +715,8 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
     ");
     $stmt->execute($params);
     $potential_sets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $debug_info[] = "Found " . count($potential_sets) . " potential sets with these players";
     
     // For each potential set, check if the leg counts match
     foreach ($potential_sets as $set_info) {
@@ -719,20 +743,41 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
             }
         }
         
-        // Check if this matches our expected leg counts
-        if ($legs1 == $expected_legs1 && $legs2 == $expected_legs2) {
+        $debug_info[] = "Set ID $set_id (created: {$set_info['created_at']}): Legs $legs1-$legs2";
+        
+        // Check if this matches our expected leg counts (in either order)
+        $match_forward = ($legs1 == $expected_legs1 && $legs2 == $expected_legs2);
+        $match_reverse = ($legs1 == $expected_legs2 && $legs2 == $expected_legs1);
+        
+        if ($match_forward || $match_reverse) {
             // This is our set! Extract stats and return with info
-            $stats = extractSetStats($db, $set_id, $player1_id, $player2_id);
+            // If reversed, we need to swap the player IDs when extracting stats
+            if ($match_reverse) {
+                $debug_info[] = "✓ MATCH FOUND (reversed player order)!";
+                $stats = extractSetStats($db, $set_id, $player2_id, $player1_id);
+            } else {
+                $debug_info[] = "✓ MATCH FOUND!";
+                $stats = extractSetStats($db, $set_id, $player1_id, $player2_id);
+            }
             
             return [
                 'set_id' => $set_id,
                 'created_at' => $set_info['created_at'],
-                'stats' => $stats
+                'stats' => $stats,
+                'debug' => $debug_info
             ];
         }
     }
     
-    return null;
+    $debug_info[] = "✗ No matching set found";
+    
+    return [
+        'set_id' => null,
+        'created_at' => null,
+        'stats' => null,
+        'debug' => $debug_info,
+        'matched' => false
+    ];
 }
 
 function getPlayerName($player_id) {
@@ -1073,6 +1118,15 @@ function resetImport() {
                                 Dbl Attempts: <?php echo $info['stats']['dblattempts1']; ?> / <?php echo $info['stats']['dblattempts2']; ?> |
                                 High Score: <?php echo $info['stats']['highscore1']; ?> / <?php echo $info['stats']['highscore2']; ?> |
                                 High CO: <?php echo $info['stats']['highco1']; ?> / <?php echo $info['stats']['highco2']; ?>
+                                <br>
+                                <details style="margin-top: 5px;">
+                                    <summary style="cursor: pointer; color: #666;">Show matching details</summary>
+                                    <div style="margin-top: 5px; font-family: monospace; font-size: 0.85em;">
+                                        <?php foreach ($info['debug'] as $debug_line): ?>
+                                            <?php echo htmlspecialchars($debug_line); ?><br>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </details>
                             </div>
                         <?php else: ?>
                             <div style="opacity: 0.6;">
@@ -1084,6 +1138,17 @@ function resetImport() {
                                 (<?php echo $set['legs2']; ?>)
                                 <br>
                                 <span style="color: #dc3545;">✗ No matching set found in database</span>
+                                <?php if (!empty($info['debug'])): ?>
+                                <br>
+                                <details style="margin-top: 5px;">
+                                    <summary style="cursor: pointer; color: #666;">Show debug info</summary>
+                                    <div style="margin-top: 5px; font-family: monospace; font-size: 0.85em;">
+                                        <?php foreach ($info['debug'] as $debug_line): ?>
+                                            <?php echo htmlspecialchars($debug_line); ?><br>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </details>
+                                <?php endif; ?>
                             </div>
                         <?php endif; ?>
                     </div>
