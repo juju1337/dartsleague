@@ -3,7 +3,7 @@
 
 session_start();
 
-$admin_password = 'darts2026'; // Change this to your desired password
+$admin_password = '1234'; // Change this to your desired password
 
 // Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
@@ -735,4 +735,5 @@ function getPlayerName($player_id) {
         <?php endif; ?>
 </body>
 </html>
+
 
