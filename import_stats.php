@@ -291,7 +291,7 @@ function handleStatsImport() {
 
 function findSetStats($db, $player1_id, $player2_id, $expected_legs1, $expected_legs2, $matchday_date = null) {
     // Build query to find all sets where these two players played
-    // If we have a matchday date, filter by date proximity (within 7 days)
+    // If we have a matchday date, filter by date proximity (within 2 days)
     $date_filter = '';
     $params = [$player1_id, $player2_id];
     
@@ -740,7 +740,7 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
         $date_filter = " AND s.created_at >= date(?, '-2 days') AND s.created_at <= date(?, '+2 days')";
         $params[] = $matchday_date;
         $params[] = $matchday_date;
-        // $debug_info[] = "Date filter: ±7 days from $matchday_date";
+        // $debug_info[] = "Date filter: ±2 days from $matchday_date";
     }
     
     $stmt = $db->prepare("
@@ -849,7 +849,83 @@ function resetImport() {
     <title>Import Statistics</title>
     <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+    <style>
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #dc3545;
+            color: #721c24;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .step-indicator {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .step-indicator .step {
+            display: inline-block;
+            padding: 5px 15px;
+            margin: 0 5px;
+            background: #ddd;
+            border-radius: 3px;
+        }
+        .step-indicator .step.active {
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .step-indicator .step.completed {
+            background: #28a745;
+            color: white;
+        }
+        .set-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .set-item.has-stats {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        .set-item.unmatched {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        select.player-mapping {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        .selection-buttons {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .selection-buttons button {
+            margin-right: 10px;
+        }
+    </style>
     <script>
         function selectAllSets() {
             var checkboxes = document.querySelectorAll('input[name="selected_sets[]"]');
