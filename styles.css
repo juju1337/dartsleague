@@ -1,35 +1,61 @@
+/* Modern & Compact Styles */
+
 /* Light mode (default) */
 body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    /* max-width: 1200px; */
-    /* For responsiveness */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 15px;
     max-width: 100%;
-    padding: 10px;
     box-sizing: border-box;
+    line-height: 1.5;
+    background-color: #f8f9fa;
 }
 
 h1 {
-    color: #333;
+    color: #212529;
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+}
+
+h2 {
+    color: #495057;
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.75rem 0;
 }
 
 h3 {
-    margin-top: 20px;
+    color: #495057;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1rem 0 0.5rem 0;
 }
 
+/* Compact Tables */
 table {
     border-collapse: collapse;
     width: 100%;
-    margin: 20px 0;
+    margin: 1rem 0;
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    font-size: 0.9rem;
 }
 
 th {
-    background-color: #f2f2f2;
+    background-color: #f8f9fa;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6c757d;
 }
 
 th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
+    border: 1px solid #e9ecef;
+    padding: 0.5rem 0.75rem;
     text-align: left;
 }
 
@@ -39,438 +65,583 @@ td:first-child {
 
 td.player-name, th.player-name {
     width: 300px;
+    font-weight: 500;
 }
 
-select {
-    padding: 5px;
-    margin: 5px 0;
+tr:hover {
+    background-color: #f8f9fa;
 }
 
-label {
-    display: block; 
-    margin: 10px 0 5px 0;
+/* Modern Form Controls */
+select, 
+input[type="text"], 
+input[type="date"], 
+input[type="number"],
+input[type="password"],
+input[type="file"] {
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem 0;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    background-color: white;
 }
 
-label.inline {
-    display: inline;
-    margin: 0 10px 0 0;
-}
-
-input[type="text"], input[type="date"], select {
-    padding: 5px;
-    margin: 5px 0;
+select:focus,
+input[type="text"]:focus, 
+input[type="date"]:focus, 
+input[type="number"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
 }
 
 input[type="number"] {
     width: 80px;
-    padding: 5px;
-    margin: 5px
 }
 
 input[type="password"] {
-    padding: 8px;
-    margin: 5px 0;
     width: 200px;
 }
 
-input[type="submit"], button {
-    padding: 8px 15px;
-    margin: 5px;
+/* Modern Buttons */
+input[type="submit"], 
+button {
+    padding: 0.5rem 1rem;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+input[type="submit"]:hover, 
+button:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+input[type="submit"]:active,
+button:active {
+    transform: translateY(0);
 }
 
 input[type="checkbox"] {
-    margin: 5px;
+    margin: 0.25rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    cursor: pointer;
 }
 
+/* Labels */
+label {
+    display: block; 
+    margin: 0.75rem 0 0.25rem 0;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+label.inline {
+    display: inline;
+    margin: 0 0.75rem 0 0;
+}
+
+/* Modern Navigation */
 nav {
-    background-color: #f0f0f0;
-    padding: 10px;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #ddd;
+    background-color: white;
+    padding: 0.75rem 1rem;
+    margin: -15px -15px 1.5rem -15px;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
+nav a {
+    margin-right: 1.25rem;
+    text-decoration: none;
+    color: #495057;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+nav a:hover {
+    color: #0d6efd;
+}
+
+/* Alert Boxes - More Compact */
 .info {
-    background-color: #e7f3ff;
-    padding: 10px;
-    margin: 10px 0;
-    border-left: 4px solid #2196F3;
+    background-color: #cfe2ff;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    border-left: 3px solid #0d6efd;
+    border-radius: 4px;
+    font-size: 0.9rem;
 }
 
 .warning {
     background-color: #fff3cd;
-    padding: 10px;
-    margin: 10px 0;
-    border: 1px solid #ffc107;
-    color: #856404;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    border-left: 3px solid #ffc107;
+    border-radius: 4px;
+    color: #664d03;
+    font-size: 0.9rem;
 }
 
-.form-section {
-    margin-bottom: 30px;
-    padding: 15px;
-    border: 1px solid #ddd;
+.success {
+    background-color: #d1e7dd;
+    border-left: 3px solid #198754;
+    color: #0f5132;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    border-radius: 4px;
+    font-size: 0.9rem;
 }
 
-.section {
-    margin: 30px 0;
-    padding: 15px;
-    border: 1px solid #ddd;
+.error {
+    background-color: #f8d7da;
+    border-left: 3px solid #dc3545;
+    color: #842029;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* Compact Sections */
+.form-section, .section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .subsection {
-    margin: 20px 0;
-    padding: 10px;
-    background-color: #f9f9f9;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
 }
 
 .group-phase {
-    background-color: #f9f9f9;
+    background-color: #f8f9fa;
+    border-radius: 4px;
 }
 
 .playoff-phase {
     background-color: #fff3e0;
+    border-radius: 4px;
 }
 
 .match-format {
-    font-size: 0.9em;
-    color: #666;
- }
- 
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
 .set-row {
-    background-color: #f9f9f9;
+    background-color: #f8f9fa;
 }
 
 .match-header {
-    background-color: #e8f5e9;
-    font-weight: bold;
+    background-color: #e7f1ff;
+    font-weight: 600;
 }
 
 .admin-panel {
-    background-color: #f0f0f0;
-    padding: 15px;
-    margin: 20px 0;
-    border-left: 4px solid #333;
+    background-color: white;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-left: 3px solid #495057;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .login-box {
-    background-color: #fff;
-    padding: 20px;
-    margin: 20px 0;
-    border: 1px solid #ddd;
+    background-color: white;
+    padding: 1.5rem;
+    margin: 1.5rem auto;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
     max-width: 400px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .format-box {
-    background-color: #f9f9f9;
-    padding: 10px;
-    margin: 5px 0;
-    border-left: 3px solid #4CAF50;
+    background-color: #f8f9fa;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-left: 3px solid #198754;
+    border-radius: 4px;
 }
 
-.success {
-    background-color: #d4edda;
-    border: 1px solid #28a745;
-    color: #155724;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 4px;
-}
-.error {
-    background-color: #f8d7da;
-    border: 1px solid #dc3545;
-    color: #721c24;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 4px;
-}
+/* Import Stats Specific */
 .step-indicator {
-    margin: 20px 0;
-    padding: 15px;
-    background: #f0f0f0;
-    border-radius: 4px;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
+
 .step-indicator .step {
     display: inline-block;
-    padding: 5px 15px;
-    margin: 0 5px;
-    background: #ddd;
-    border-radius: 3px;
-}
-.step-indicator .step.active {
-    background: #007bff;
-    color: white;
-    font-weight: bold;
-}
-.step-indicator .step.completed {
-    background: #28a745;
-    color: white;
-}
-.set-item {
-    padding: 10px;
-    margin: 5px 0;
-    background: #f9f9f9;
-    border: 1px solid #ddd;
+    padding: 0.4rem 0.9rem;
+    background: #e9ecef;
     border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #6c757d;
 }
+
+.step-indicator .step.active {
+    background: #0d6efd;
+    color: white;
+}
+
+.step-indicator .step.completed {
+    background: #198754;
+    color: white;
+}
+
+.set-item {
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.set-item:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.1);
+}
+
 .set-item.has-stats {
     background: #fff3cd;
     border-color: #ffc107;
 }
+
 .set-item.unmatched {
     background: #f8d7da;
     border-color: #dc3545;
+    opacity: 0.7;
 }
+
 select.player-mapping {
     width: 100%;
-    padding: 5px;
-    margin: 5px 0;
+    padding: 0.5rem;
+    margin: 0.25rem 0;
 }
+
 .selection-buttons {
-    margin: 15px 0;
-    padding: 10px;
-    background: #f0f0f0;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background: #f8f9fa;
     border-radius: 4px;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
+
 .selection-buttons button {
-    margin-right: 10px;
+    margin: 0;
+}
+
+.matched-info {
+    background: #d1e7dd !important;
+    border-left-color: #198754 !important;
+    color: #0f5132 !important;
+}
+
+.multiple-matches-warning {
+    background: #fff3cd !important;
+    border-left-color: #ffc107 !important;
+    color: #664d03 !important;
+}
+
+/* Links */
+a {
+    color: #0d6efd;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: #0b5ed7;
+    text-decoration: underline;
+}
+
+/* Footer Links */
+hr + p {
+    padding: 1rem 0;
+    font-size: 0.9rem;
 }
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
     body {
-        background-color: #1a1a1a;
-        color: #e0e0e0;
+        background-color: #0d1117;
+        color: #e6edf3;
     }
 
-    h1 {
-        color: #e0e0e0;
+    h1, h2, h3 {
+        color: #e6edf3;
     }
 
     table {
-        background-color: #2a2a2a;
+        background-color: #161b22;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
 
     th {
-        background-color: #333333 !important;
-        color: #e0e0e0;
+        background-color: #21262d;
+        color: #8b949e;
     }
 
-    td, th {
-        border-color: #444444 !important;
+    th, td {
+        border-color: #30363d;
     }
     
-    table tr:nth-child(even) {
-        background-color: #2a2a2a;
-    }
-    
-    nav {
-        background-color: #2a2a2a;
-        border-bottom-color: #444444;
-    }
-    
-    .info {
-        background-color: #1e3a5f;
-        border-left-color: #4a90e2;
-        color: #e0e0e0;
+    tr:hover {
+        background-color: #161b22;
     }
 
-    .warning {
-        background-color: #4a3f1a;
-        border-left-color: #ffc107;
-        color: #e0e0e0;
-    }
-
-    .section {
-        background-color: #2a2a2a;
-        border-color: #444444;
-    }
-
-    .form-section, .subsection {
-        background-color: #2a2a2a;
-        border-color: #444444;
-    }
-    
-    .container,
-    .content {
-        background-color: #1a1a1a;
-    }
-
-    .login-box {
-        background-color: #2a2a2a;
-        border-color: #444444;
-    }
-        
-    .format-box {
-        background-color: #2a2a2a;
-        border-color: #444444;
-    }
-
-    .group-phase {
-        background-color: #2a2a2a !important;
-    }
-
-    .playoff-phase {
-        background-color: #3a2a1a !important;
-    }
-    
-    .admin-panel {
-        background-color: #2a2a2a;
-    }
-    
-    .matched-info {
-        background: #1a3d2e !important;
-        border-left-color: #28a745 !important;
-        color: #e0e0e0 !important;
-    }
-    
-    .multiple-matches-warning {
-        background: #3d3518 !important;
-        border-left-color: #ffc107 !important;
-        color: #ffd666 !important;
-    }
-    
-    .success {
-        background-color: #1a3d2e;
-        border-color: #28a745;
-        color: #6cda91;
-    }
-    
-    .error {
-        background-color: #3d1a1f;
-        border-color: #dc3545;
-        color: #ff6b7a;
-    }
-    
-    .step-indicator {
-        background: #2a2a2a;
-    }
-    
-    .step-indicator .step {
-        background: #3a3a3a;
-        color: #e0e0e0;
-    }
-    
-    .step-indicator .step.active {
-        background: #0d6efd;
-        color: white;
-    }
-    
-    .step-indicator .step.completed {
-        background: #198754;
-        color: white;
-    }
-    
-    .set-item {
-        background: #2a2a2a;
-        border-color: #444;
-        color: #e0e0e0;
-    }
-    
-    .set-item.has-stats {
-        background: #3d3518;
-        border-color: #ffc107;
-    }
-    
-    .set-item.unmatched {
-        background: #3d1a1f;
-        border-color: #dc3545;
-    }
-    
-    .selection-buttons {
-        background: #2a2a2a;
-    }
-    
+    select, 
     input[type="text"], 
-    input[type="password"], 
     input[type="date"], 
     input[type="number"],
-    input[type="file"],
-    select,
-    select.player-mapping {
-        background-color: #333333;
-        color: #e0e0e0;
-        border-color: #555555;
+    input[type="password"],
+    input[type="file"] {
+        background-color: #0d1117;
+        color: #e6edf3;
+        border-color: #30363d;
+    }
+
+    select:focus,
+    input[type="text"]:focus, 
+    input[type="date"]:focus, 
+    input[type="number"]:focus,
+    input[type="password"]:focus {
+        border-color: #1f6feb;
+        box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
     }
 
     input[type="submit"], 
     button {
-        background-color: #4a4a4a;
-        color: #e0e0e0;
-        border-color: #666666;
+        background-color: #1f6feb;
+        color: white;
     }
 
     input[type="submit"]:hover, 
     button:hover {
-        background-color: #5a5a5a;
+        background-color: #1a5cd7;
     }
-    
-    input[type="text"]:focus,
-    select:focus {
-        background-color: #3a3a3a;
-        border-color: #0d6efd;
+
+    label {
+        color: #c9d1d9;
     }
-    
-    input[type="checkbox"],
-    input[type="radio"] {
-        accent-color: #0d6efd;
+
+    nav {
+        background-color: #161b22;
+        border-bottom-color: #30363d;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
-    
-    details summary {
-        color: #aaa;
+
+    nav a {
+        color: #c9d1d9;
     }
-    
-    details summary:hover {
-        color: #e0e0e0;
+
+    nav a:hover {
+        color: #58a6ff;
     }
-    
-    button:disabled,
-    input:disabled,
-    select:disabled {
-        background-color: #2a2a2a;
-        color: #666;
-        border-color: #444;
-        opacity: 0.6;
+
+    .info {
+        background-color: #1c2d41;
+        border-left-color: #1f6feb;
+        color: #79c0ff;
     }
-    
-    button:hover,
-    input[type="submit"]:hover {
-        background-color: #0b5ed7;
-        border-color: #0a58ca;
+
+    .warning {
+        background-color: #3d3518;
+        border-left-color: #e3b341;
+        color: #f0d789;
+    }
+
+    .success {
+        background-color: #1a3d2e;
+        border-left-color: #2ea043;
+        color: #7ee787;
+    }
+
+    .error {
+        background-color: #3d1a1f;
+        border-left-color: #da3633;
+        color: #ff7b72;
+    }
+
+    .form-section, .section {
+        background-color: #161b22;
+        border-color: #30363d;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .subsection {
+        background-color: #0d1117;
+    }
+
+    .group-phase {
+        background-color: #0d1117;
+    }
+
+    .playoff-phase {
+        background-color: #2d2416;
+    }
+
+    .admin-panel {
+        background-color: #161b22;
+        border-left-color: #8b949e;
+    }
+
+    .login-box {
+        background-color: #161b22;
+        border-color: #30363d;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .format-box {
+        background-color: #0d1117;
+        border-left-color: #2ea043;
+    }
+
+    .step-indicator {
+        background: #161b22;
+        border-color: #30363d;
+    }
+
+    .step-indicator .step {
+        background: #21262d;
+        color: #8b949e;
+    }
+
+    .step-indicator .step.active {
+        background: #1f6feb;
+        color: white;
+    }
+
+    .step-indicator .step.completed {
+        background: #2ea043;
+        color: white;
+    }
+
+    .set-item {
+        background: #161b22;
+        border-color: #30363d;
+    }
+
+    .set-item:hover {
+        border-color: #1f6feb;
+        box-shadow: 0 2px 4px rgba(31, 111, 235, 0.2);
+    }
+
+    .set-item.has-stats {
+        background: #3d3518;
+        border-color: #e3b341;
+    }
+
+    .set-item.unmatched {
+        background: #3d1a1f;
+        border-color: #da3633;
+    }
+
+    .selection-buttons {
+        background: #0d1117;
+    }
+
+    .matched-info {
+        background: #1a3d2e !important;
+        border-left-color: #2ea043 !important;
+        color: #7ee787 !important;
+    }
+
+    .multiple-matches-warning {
+        background: #3d3518 !important;
+        border-left-color: #e3b341 !important;
+        color: #f0d789 !important;
+    }
+
+    .match-header {
+        background-color: #1c2d41;
+    }
+
+    .set-row {
+        background-color: #0d1117;
+    }
+
+    input[type="checkbox"] {
+        accent-color: #1f6feb;
     }
 
     a {
-        color: #6bb6ff;
+        color: #58a6ff;
     }
 
     a:hover {
-        color: #4a90e2;
+        color: #79c0ff;
     }
-    
-    nav a {
-        color: #e0e0e0;
-    }
-    
-    nav a:hover {
-        background-color: #3a3a3a;
+
+    button:disabled,
+    input:disabled,
+    select:disabled {
+        background-color: #21262d;
+        color: #6e7681;
+        border-color: #30363d;
+        opacity: 0.6;
     }
 }
 
 /* Responsive tables */
 @media (max-width: 768px) {
-    /* Make tables scrollable on small screens */
+    body {
+        padding: 10px;
+    }
+
+    nav {
+        margin: -10px -10px 1rem -10px;
+        padding: 0.5rem;
+    }
+
+    nav a {
+        display: block;
+        padding: 0.5rem 0;
+        margin-right: 0;
+    }
+
     table {
         display: block;
         overflow-x: auto;
         white-space: nowrap;
         -webkit-overflow-scrolling: touch;
+        font-size: 0.85rem;
     }
     
-    /* Smaller padding on mobile */
     th, td {
-        padding: 6px 4px;
-        font-size: 14px;
+        padding: 0.4rem;
     }
     
-    /* Stack form inputs vertically */
     input[type="text"],
     input[type="password"],
     input[type="date"],
@@ -481,53 +652,57 @@ select.player-mapping {
         box-sizing: border-box;
     }
     
-    /* Full-width buttons on mobile */
     input[type="submit"],
     button {
         width: 100%;
-        margin: 5px 0;
+        margin: 0.25rem 0;
     }
     
-    /* Reduce section padding */
     .section,
     .form-section,
     .subsection {
-        padding: 10px;
+        padding: 0.75rem;
     }
     
-    /* Make match tables more compact */
     .player-name {
         width: auto;
         min-width: 100px;
     }
     
-    /* Stack navigation links vertically */
-    hr + p {
-        line-height: 2;
-    }
-    
-    /* Smaller headings on mobile */
     h1 {
-        font-size: 24px;
+        font-size: 1.5rem;
     }
     
     h2 {
-        font-size: 20px;
+        font-size: 1.2rem;
     }
     
     h3 {
-        font-size: 18px;
+        font-size: 1rem;
+    }
+
+    .step-indicator {
+        flex-direction: column;
+    }
+
+    .step-indicator .step {
+        width: 100%;
+        text-align: center;
+    }
+
+    .selection-buttons {
+        flex-direction: column;
+    }
+
+    .selection-buttons button {
+        width: 100%;
     }
 }
 
-/* Tablet-specific adjustments */
+/* Tablet adjustments */
 @media (min-width: 769px) and (max-width: 1024px) {
     body {
         padding: 15px;
-    }
-    
-    th, td {
-        padding: 8px 6px;
     }
 }
 
@@ -539,15 +714,8 @@ select.player-mapping {
         align-items: center;
         justify-content: center;
     }
-}
 
-/* Make score entry forms more mobile-friendly */
-@media (max-width: 768px) {
-    .section input[type="number"] {
-        width: 60px !important;
+    input[type="number"] {
         font-size: 16px; /* Prevents zoom on iOS */
     }
 }
-
-
-
