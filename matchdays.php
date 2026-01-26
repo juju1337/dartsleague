@@ -1302,8 +1302,8 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <?php else: ?>
                                 <th>Legs</th>
                             <?php endif; ?>
-                            <th>3DA</th>
-                            <th>Dbl%</th>
+                            <th>Avg</th>
+                            <th>Doubles %</th>
                         </tr>
                         <tr>
                             <td class="player-name">
@@ -1591,8 +1591,8 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <th>Legs+</th>
                             <th>Legs-</th>
                             <th>Leg Diff</th>
-                            <th>3DA</th>
-                            <th>Dbl%</th>
+                            <th>Avg</th>
+                            <th>Doubles %</th>
                             <th>High Score</th>
                             <th>High CO</th>
                         </tr>
@@ -1723,4 +1723,5 @@ function saveExtraPoints($matchday_id, $extra_points) {
         <?php endif; ?>
 </body>
 </html>
+
 
