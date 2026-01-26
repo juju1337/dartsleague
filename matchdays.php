@@ -509,7 +509,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
     <?php elseif ($edit_matchday): ?>
         <!-- Edit Matchday Form -->
         <?php $md = getMatchdayById($edit_matchday); ?>
-        <div class="section">
+        <div>
             <h2>Edit Matchday <?php echo $md['id']; ?></h2>
             <form method="POST">
                 <input type="hidden" name="id" value="<?php echo $md['id']; ?>">

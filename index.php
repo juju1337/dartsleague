@@ -173,7 +173,7 @@ function getPlayerName($player_id) {
     <h1>Tournament Overview</h1>
     
     <!-- Tournament Information -->
-    <div class="section">
+    <div>
         <?php if (!$tournament_info['has_tournament']): ?>
             <div class="info">
                 <strong>No tournament created yet.</strong><br>
@@ -317,7 +317,7 @@ function getPlayerName($player_id) {
         if (!empty($completed_matchdays)):
         ?>
         
-        <h3>Overall Tournament Standings</h3>
+        <h2>Overall Tournament Standings</h2>
         <p><em>Based on <?php echo count($completed_matchdays); ?> completed matchday(s)</em></p>
         
         <?php
