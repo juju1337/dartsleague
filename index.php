@@ -728,9 +728,11 @@ function getPlayerName($player_id) {
         <?php if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']): ?>
             | <a href="players.php">Player Management</a>
             | <a href="matchday_setup.php">Tournament Setup</a>
+            | <a href="import_stats.php">Import Stats</a>
             | <a href="index.php?logout=1">Logout</a>
         <?php else: ?>
             | <a href="index.php#login">Login</a>
         <?php endif; ?>
 </body>
 </html>
+
