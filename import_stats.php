@@ -20,6 +20,18 @@ if (!isset($_SESSION['import_step'])) {
     $_SESSION['import_step'] = 'upload';
 }
 
+// If coming back after completion (e.g., navigating away and returning), reset to upload step
+if ($_SESSION['import_step'] == 'complete' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    // Clear all import-related session data
+    unset($_SESSION['import_step']);
+    unset($_SESSION['sqlite_data']);
+    unset($_SESSION['player_mapping']);
+    unset($_SESSION['selected_matchday']);
+    unset($_SESSION['selected_sets']);
+    unset($_SESSION['match_selections']);
+    $_SESSION['import_step'] = 'upload';
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['upload_file'])) {
@@ -1113,8 +1125,7 @@ function resetImport() {
                             </label>
                             
                             <?php if ($info['multiple']): ?>
-                                <div style="margin-top: 8px; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107; font-size: 0.9em;">
-                                    <strong>⚠ Multiple matches found (<?php echo count($info['matches']); ?>)</strong> - Please select which one to use:
+                                <div class="multiple-matches-warning" style="margin-top: 8px; padding: 8px; border-left: 3px solid #ffc107; font-size: 0.9em;"><strong>⚠ Multiple matches found (<?php echo count($info['matches']); ?>)</strong> - Please select which one to use:
                                     <br><br>
                                     <select name="match_selection[<?php echo $set['id']; ?>]" style="width: 100%; padding: 5px;">
                                         <?php foreach ($info['matches'] as $idx => $match): ?>
@@ -1129,8 +1140,7 @@ function resetImport() {
                                     </select>
                                 </div>
                             <?php else: ?>
-                                <div style="margin-top: 8px; padding: 8px; background: #e8f5e9; border-left: 3px solid #4caf50; font-size: 0.9em;">
-                                    <strong>✓ Matched SQLite Set:</strong> Created at <?php echo $info['matches'][0]['created_at']; ?>
+                                <div class="matched-info" style="margin-top: 8px; padding: 8px; border-left: 3px solid #4caf50; font-size: 0.9em;"><strong>✓ Matched SQLite Set:</strong> Created at <?php echo $info['matches'][0]['created_at']; ?>
                                     <br>
                                     <strong>Stats to import:</strong>
                                     3DA: <?php echo $info['matches'][0]['stats']['3da1']; ?> / <?php echo $info['matches'][0]['stats']['3da2']; ?> |
