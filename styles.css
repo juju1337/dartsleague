@@ -164,7 +164,7 @@ nav {
 }
 
 nav a {
-    margin-right: 1.25rem;
+    /* margin-right: 1.25rem;*/
     text-decoration: none;
     color: #495057;
     font-weight: 500;
