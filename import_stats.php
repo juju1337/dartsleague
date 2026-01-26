@@ -98,23 +98,28 @@ function loadSets() {
     if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
+            // Skip empty rows
+            if (empty($row) || count($row) < 16) {
+                continue;
+            }
+            
             $sets[] = [
                 'id' => $row[0],
-                'match_id' => $row[1],
-                'player1_id' => $row[2],
-                'player2_id' => $row[3],
+                'matchid' => $row[1],
+                'player1id' => $row[2],
+                'player2id' => $row[3],
                 'legs1' => $row[4],
                 'legs2' => $row[5],
-                'darts1' => $row[6],
-                'darts2' => $row[7],
-                '3da1' => $row[8],
-                '3da2' => $row[9],
-                'dblattempts1' => $row[10],
-                'dblattempts2' => $row[11],
-                'highscore1' => $row[12],
-                'highscore2' => $row[13],
-                'highco1' => $row[14],
-                'highco2' => $row[15]
+                'darts1' => isset($row[6]) ? $row[6] : '',
+                'darts2' => isset($row[7]) ? $row[7] : '',
+                '3da1' => isset($row[8]) ? $row[8] : '',
+                '3da2' => isset($row[9]) ? $row[9] : '',
+                'dblattempts1' => isset($row[10]) ? $row[10] : '',
+                'dblattempts2' => isset($row[11]) ? $row[11] : '',
+                'highscore1' => isset($row[12]) ? $row[12] : '',
+                'highscore2' => isset($row[13]) ? $row[13] : '',
+                'highco1' => isset($row[14]) ? $row[14] : '',
+                'highco2' => isset($row[15]) ? $row[15] : ''
             ];
         }
         fclose($fp);
@@ -180,6 +185,14 @@ function handleConfirmMatches() {
     }
     
     $_SESSION['selected_sets'] = $_POST['selected_sets'];
+    
+    // Store match selections (which SQLite set to use for each CSV set)
+    if (isset($_POST['match_selection'])) {
+        $_SESSION['match_selections'] = $_POST['match_selection'];
+    } else {
+        $_SESSION['match_selections'] = [];
+    }
+    
     $_SESSION['import_step'] = 'confirm_import';
     header('Location: import_stats.php');
     exit;
@@ -198,6 +211,7 @@ function handleStatsImport() {
     
     $player_mapping = $_SESSION['player_mapping'];
     $selected_sets = $_SESSION['selected_sets'];
+    $match_selections = isset($_SESSION['match_selections']) ? $_SESSION['match_selections'] : [];
     
     try {
         // Create temporary file for PDO
@@ -221,15 +235,16 @@ function handleStatsImport() {
                     break;
                 }
             }
+            unset($s); // Important: unset reference after foreach loop
             
             if (!$csv_set) {
                 continue;
             }
             
             // Get match details
-            $match_id = $csv_set['match_id'];
-            $player1_csv_id = $csv_set['player1_id'];
-            $player2_csv_id = $csv_set['player2_id'];
+            $match_id = $csv_set['matchid'];
+            $player1_csv_id = $csv_set['player1id'];
+            $player2_csv_id = $csv_set['player2id'];
             
             // Get SQLite player IDs from mapping
             $player1_sqlite_id = isset($player_mapping[$player1_csv_id]) ? $player_mapping[$player1_csv_id] : null;
@@ -248,24 +263,33 @@ function handleStatsImport() {
                 }
             }
             
-            // Find matching set in SQLite by analyzing legs
-            $stats = findSetStats($db, $player1_sqlite_id, $player2_sqlite_id, $csv_set['legs1'], $csv_set['legs2'], $matchday_date);
+            // Find matching set(s) in SQLite
+            $result = findSetStatsWithInfo($db, $player1_sqlite_id, $player2_sqlite_id, $csv_set['legs1'], $csv_set['legs2'], $matchday_date);
             
-            if ($stats) {
-                // Update the CSV set with the stats
-                $csv_set['darts1'] = $stats['darts1'];
-                $csv_set['darts2'] = $stats['darts2'];
-                $csv_set['3da1'] = $stats['3da1'];
-                $csv_set['3da2'] = $stats['3da2'];
-                $csv_set['dblattempts1'] = $stats['dblattempts1'];
-                $csv_set['dblattempts2'] = $stats['dblattempts2'];
-                $csv_set['highscore1'] = $stats['highscore1'];
-                $csv_set['highscore2'] = $stats['highscore2'];
-                $csv_set['highco1'] = $stats['highco1'];
-                $csv_set['highco2'] = $stats['highco2'];
+            if ($result && isset($result['matches']) && !empty($result['matches'])) {
+                // Get the user's selected match index (default to 0)
+                $selected_index = isset($match_selections[$set_id]) ? intval($match_selections[$set_id]) : 0;
                 
-                $imported_count++;
+                // Make sure the index is valid
+                if ($selected_index >= 0 && $selected_index < count($result['matches'])) {
+                    $stats = $result['matches'][$selected_index]['stats'];
+                    
+                    // Update the CSV set with the stats
+                    $csv_set['darts1'] = $stats['darts1'];
+                    $csv_set['darts2'] = $stats['darts2'];
+                    $csv_set['3da1'] = $stats['3da1'];
+                    $csv_set['3da2'] = $stats['3da2'];
+                    $csv_set['dblattempts1'] = $stats['dblattempts1'];
+                    $csv_set['dblattempts2'] = $stats['dblattempts2'];
+                    $csv_set['highscore1'] = $stats['highscore1'];
+                    $csv_set['highscore2'] = $stats['highscore2'];
+                    $csv_set['highco1'] = $stats['highco1'];
+                    $csv_set['highco2'] = $stats['highco2'];
+                    
+                    $imported_count++;
+                }
             }
+            unset($csv_set);
         }
         
         // Write back to CSV
@@ -291,7 +315,7 @@ function handleStatsImport() {
 
 function findSetStats($db, $player1_id, $player2_id, $expected_legs1, $expected_legs2, $matchday_date = null) {
     // Build query to find all sets where these two players played
-    // If we have a matchday date, filter by date proximity (within 2 days)
+    // If we have a matchday date, filter by date proximity (within 7 days)
     $date_filter = '';
     $params = [$player1_id, $player2_id];
     
@@ -490,14 +514,18 @@ function saveSets($sets) {
     global $sets_file;
     
     $fp = fopen($sets_file, 'w');
-    fputcsv($fp, ['id', 'match_id', 'player1_id', 'player2_id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
+    if (!$fp) {
+        return;
+    }
+    
+    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
     
     foreach ($sets as $set) {
         fputcsv($fp, [
             $set['id'],
-            $set['match_id'],
-            $set['player1_id'],
-            $set['player2_id'],
+            $set['matchid'],
+            $set['player1id'],
+            $set['player2id'],
             $set['legs1'],
             $set['legs2'],
             $set['darts1'],
@@ -515,6 +543,7 @@ function saveSets($sets) {
     
     fclose($fp);
 }
+
 
 function getSQLitePlayers() {
     if (!isset($_SESSION['sqlite_data'])) {
@@ -625,7 +654,7 @@ function getMatchdaySets($matchday_id) {
     $result = [];
     foreach ($matchday_matches as $match) {
         $match_sets = array_filter($csv_sets, function($s) use ($match) {
-            return $s['match_id'] == $match['id'];
+            return $s['matchid'] == $match['id'];
         });
         
         foreach ($match_sets as $set) {
@@ -673,8 +702,8 @@ function matchAllSets($matchday_id) {
         $matches_info = [];
         
         foreach ($matchday_sets as $set) {
-            $player1_csv_id = $set['player1_id'];
-            $player2_csv_id = $set['player2_id'];
+            $player1_csv_id = $set['player1id'];
+            $player2_csv_id = $set['player2id'];
             
             // Get SQLite player IDs from mapping
             // The mapping is: player_mapping[csv_player_id] = sqlite_player_id
@@ -684,21 +713,21 @@ function matchAllSets($matchday_id) {
             $match_info = [
                 'set' => $set,
                 'matched' => false,
-                'stats' => null,
-                'sqlite_set_id' => null,
-                'sqlite_created_at' => null,
+                'matches' => [],
+                'selected_match_index' => 0,
+                'multiple' => false
                 // 'debug' => []
             ];
             
             if ($player1_sqlite_id !== null && $player2_sqlite_id !== null) {
-                // Try to find matching set
+                // Try to find matching set(s)
                 $result = findSetStatsWithInfo($db, $player1_sqlite_id, $player2_sqlite_id, $set['legs1'], $set['legs2'], $matchday_date);
                 
-                if ($result && isset($result['stats']) && $result['stats'] !== null) {
+                if ($result && isset($result['matches']) && !empty($result['matches'])) {
                     $match_info['matched'] = true;
-                    $match_info['stats'] = $result['stats'];
-                    $match_info['sqlite_set_id'] = $result['set_id'];
-                    $match_info['sqlite_created_at'] = $result['created_at'];
+                    $match_info['matches'] = $result['matches'];
+                    $match_info['multiple'] = $result['multiple'];
+                    $match_info['selected_match_index'] = 0; // Default to first (most recent)
                 }
                 
                 // Always store debug info
@@ -759,6 +788,8 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
     
     // $debug_info[] = "Found " . count($potential_sets) . " potential sets with these players";
     
+    $all_matches = [];
+    
     // For each potential set, check if the leg counts match
     foreach ($potential_sets as $set_info) {
         $set_id = $set_info['set_id'];
@@ -791,7 +822,7 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
         $match_reverse = ($legs1 == $expected_legs2 && $legs2 == $expected_legs1);
         
         if ($match_forward || $match_reverse) {
-            // This is our set! Extract stats and return with info
+            // This is a potential match! Extract stats and add to list
             // If reversed, we need to swap the player IDs when extracting stats
             if ($match_reverse) {
                 // $debug_info[] = "✓ MATCH FOUND (reversed player order)!";
@@ -801,23 +832,30 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
                 $stats = extractSetStats($db, $set_id, $player1_id, $player2_id);
             }
             
-            return [
+            $all_matches[] = [
                 'set_id' => $set_id,
                 'created_at' => $set_info['created_at'],
                 'stats' => $stats,
-                // 'debug' => $debug_info
+                'reversed' => $match_reverse
             ];
         }
+    }
+    
+    // Return all matches found
+    if (count($all_matches) > 0) {
+        return [
+            'matches' => $all_matches,
+            'multiple' => count($all_matches) > 1
+            // 'debug' => $debug_info
+        ];
     }
     
     // $debug_info[] = "✗ No matching set found";
     
     return [
-        'set_id' => null,
-        'created_at' => null,
-        'stats' => null,
-        // 'debug' => $debug_info,
-        'matched' => false
+        'matches' => [],
+        'multiple' => false
+        // 'debug' => $debug_info
     ];
 }
 
@@ -1141,32 +1179,52 @@ function resetImport() {
                             <label>
                                 <input type="checkbox" name="selected_sets[]" value="<?php echo $set['id']; ?>" checked>
                                 <strong>Set <?php echo $set['id']; ?>:</strong>
-                                <?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?> 
+                                <?php echo htmlspecialchars(getPlayerName($set['player1id'])); ?> 
                                 (<?php echo $set['legs1']; ?>) 
                                 vs 
-                                <?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?> 
+                                <?php echo htmlspecialchars(getPlayerName($set['player2id'])); ?> 
                                 (<?php echo $set['legs2']; ?>)
                                 <?php if ($has_stats): ?>
                                     <span style="color: #856404;"> ⚠ Has existing stats - will be overwritten</span>
                                 <?php endif; ?>
                             </label>
-                            <div style="margin-top: 8px; padding: 8px; background: #e8f5e9; border-left: 3px solid #4caf50; font-size: 0.9em;">
-                                <strong>✓ Matched SQLite Set:</strong> Created at <?php echo $info['sqlite_created_at']; ?>
-                                <br>
-                                <strong>Stats to import:</strong>
-                                3DA: <?php echo $info['stats']['3da1']; ?> / <?php echo $info['stats']['3da2']; ?> |
-                                Darts: <?php echo $info['stats']['darts1']; ?> / <?php echo $info['stats']['darts2']; ?> |
-                                Dbl Attempts: <?php echo $info['stats']['dblattempts1']; ?> / <?php echo $info['stats']['dblattempts2']; ?> |
-                                High Score: <?php echo $info['stats']['highscore1']; ?> / <?php echo $info['stats']['highscore2']; ?> |
-                                High CO: <?php echo $info['stats']['highco1']; ?> / <?php echo $info['stats']['highco2']; ?>
-                            </div>
+                            
+                            <?php if ($info['multiple']): ?>
+                                <div style="margin-top: 8px; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107; font-size: 0.9em;">
+                                    <strong>⚠ Multiple matches found (<?php echo count($info['matches']); ?>)</strong> - Please select which one to use:
+                                    <br><br>
+                                    <select name="match_selection[<?php echo $set['id']; ?>]" style="width: 100%; padding: 5px;">
+                                        <?php foreach ($info['matches'] as $idx => $match): ?>
+                                            <option value="<?php echo $idx; ?>" <?php echo $idx === 0 ? 'selected' : ''; ?>>
+                                                Created: <?php echo $match['created_at']; ?> | 
+                                                3DA: <?php echo $match['stats']['3da1']; ?>/<?php echo $match['stats']['3da2']; ?> | 
+                                                Darts: <?php echo $match['stats']['darts1']; ?>/<?php echo $match['stats']['darts2']; ?> | 
+                                                High Score: <?php echo $match['stats']['highscore1']; ?>/<?php echo $match['stats']['highscore2']; ?> | 
+                                                High CO: <?php echo $match['stats']['highco1']; ?>/<?php echo $match['stats']['highco2']; ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            <?php else: ?>
+                                <div style="margin-top: 8px; padding: 8px; background: #e8f5e9; border-left: 3px solid #4caf50; font-size: 0.9em;">
+                                    <strong>✓ Matched SQLite Set:</strong> Created at <?php echo $info['matches'][0]['created_at']; ?>
+                                    <br>
+                                    <strong>Stats to import:</strong>
+                                    3DA: <?php echo $info['matches'][0]['stats']['3da1']; ?> / <?php echo $info['matches'][0]['stats']['3da2']; ?> |
+                                    Darts: <?php echo $info['matches'][0]['stats']['darts1']; ?> / <?php echo $info['matches'][0]['stats']['darts2']; ?> |
+                                    Dbl Attempts: <?php echo $info['matches'][0]['stats']['dblattempts1']; ?> / <?php echo $info['matches'][0]['stats']['dblattempts2']; ?> |
+                                    High Score: <?php echo $info['matches'][0]['stats']['highscore1']; ?> / <?php echo $info['matches'][0]['stats']['highscore2']; ?> |
+                                    High CO: <?php echo $info['matches'][0]['stats']['highco1']; ?> / <?php echo $info['matches'][0]['stats']['highco2']; ?>
+                                    <input type="hidden" name="match_selection[<?php echo $set['id']; ?>]" value="0">
+                                </div>
+                            <?php endif; ?>
                         <?php else: ?>
                             <div style="opacity: 0.6;">
                                 <strong>Set <?php echo $set['id']; ?>:</strong>
-                                <?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?> 
+                                <?php echo htmlspecialchars(getPlayerName($set['player1id'])); ?> 
                                 (<?php echo $set['legs1']; ?>) 
                                 vs 
-                                <?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?> 
+                                <?php echo htmlspecialchars(getPlayerName($set['player2id'])); ?> 
                                 (<?php echo $set['legs2']; ?>)
                                 <br>
                                 <span style="color: #dc3545;">✗ No matching set found in database</span>
@@ -1191,15 +1249,23 @@ function resetImport() {
         <?php 
         $selected_matchday = $_SESSION['selected_matchday'];
         $selected_sets = $_SESSION['selected_sets'];
+        $match_selections = isset($_SESSION['match_selections']) ? $_SESSION['match_selections'] : [];
         
         // Re-match to show final preview
         $matches_info = matchAllSets($selected_matchday);
         
-        // Filter to only show selected sets
+        // Filter to only show selected sets and use user's selected match index
         $selected_matches = [];
         foreach ($matches_info as $info) {
             if (in_array($info['set']['id'], $selected_sets) && $info['matched']) {
-                $selected_matches[] = $info;
+                // Get the user's selected match index for this set (default to 0)
+                $selected_index = isset($match_selections[$info['set']['id']]) ? intval($match_selections[$info['set']['id']]) : 0;
+                
+                // Make sure the index is valid
+                if ($selected_index >= 0 && $selected_index < count($info['matches'])) {
+                    $info['selected_match'] = $info['matches'][$selected_index];
+                    $selected_matches[] = $info;
+                }
             }
         }
         ?>
@@ -1225,6 +1291,7 @@ function resetImport() {
                 $current_match = null;
                 foreach ($selected_matches as $info): 
                     $set = $info['set'];
+                    $selected_match = $info['selected_match'];
                     
                     if ($current_match != $set['match_id']):
                         if ($current_match !== null) echo '</div>';
@@ -1235,11 +1302,14 @@ function resetImport() {
                 ?>
                 <div class="set-item">
                     <strong>Set <?php echo $set['id']; ?>:</strong>
-                    <?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?> 
+                    <?php echo htmlspecialchars(getPlayerName($set['player1id'])); ?> 
                     (<?php echo $set['legs1']; ?>) 
                     vs 
-                    <?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?> 
+                    <?php echo htmlspecialchars(getPlayerName($set['player2id'])); ?> 
                     (<?php echo $set['legs2']; ?>)
+                    <?php if ($info['multiple']): ?>
+                        <br><em style="color: #856404;">Using match created at: <?php echo $selected_match['created_at']; ?></em>
+                    <?php endif; ?>
                     
                     <table style="margin-top: 10px; width: 100%; font-size: 0.9em;">
                         <tr>
@@ -1251,20 +1321,20 @@ function resetImport() {
                             <th>High CO</th>
                         </tr>
                         <tr>
-                            <td><?php echo htmlspecialchars(getPlayerName($set['player1_id'])); ?></td>
-                            <td><?php echo $info['stats']['3da1']; ?></td>
-                            <td><?php echo $info['stats']['darts1']; ?></td>
-                            <td><?php echo $info['stats']['dblattempts1']; ?></td>
-                            <td><?php echo $info['stats']['highscore1']; ?></td>
-                            <td><?php echo $info['stats']['highco1']; ?></td>
+                            <td><?php echo htmlspecialchars(getPlayerName($set['player1id'])); ?></td>
+                            <td><?php echo $selected_match['stats']['3da1']; ?></td>
+                            <td><?php echo $selected_match['stats']['darts1']; ?></td>
+                            <td><?php echo $selected_match['stats']['dblattempts1']; ?></td>
+                            <td><?php echo $selected_match['stats']['highscore1']; ?></td>
+                            <td><?php echo $selected_match['stats']['highco1']; ?></td>
                         </tr>
                         <tr>
-                            <td><?php echo htmlspecialchars(getPlayerName($set['player2_id'])); ?></td>
-                            <td><?php echo $info['stats']['3da2']; ?></td>
-                            <td><?php echo $info['stats']['darts2']; ?></td>
-                            <td><?php echo $info['stats']['dblattempts2']; ?></td>
-                            <td><?php echo $info['stats']['highscore2']; ?></td>
-                            <td><?php echo $info['stats']['highco2']; ?></td>
+                            <td><?php echo htmlspecialchars(getPlayerName($set['player2id'])); ?></td>
+                            <td><?php echo $selected_match['stats']['3da2']; ?></td>
+                            <td><?php echo $selected_match['stats']['darts2']; ?></td>
+                            <td><?php echo $selected_match['stats']['dblattempts2']; ?></td>
+                            <td><?php echo $selected_match['stats']['highscore2']; ?></td>
+                            <td><?php echo $selected_match['stats']['highco2']; ?></td>
                         </tr>
                     </table>
                 </div>
