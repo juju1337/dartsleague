@@ -674,8 +674,8 @@ function getPlayerName($player_id) {
             <tr>
                 <th>Pos</th>
                 <th>Player</th>
-                <th>3DA</th>
-                <th>Dbl%</th>
+                <th>Avg</th>
+                <th>Doubles %</th>
                 <th>Points</th>
             </tr>
             <?php 
@@ -735,5 +735,6 @@ function getPlayerName($player_id) {
         <?php endif; ?>
 </body>
 </html>
+
 
 
