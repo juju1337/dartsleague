@@ -296,7 +296,7 @@ function findSetStats($db, $player1_id, $player2_id, $expected_legs1, $expected_
     $params = [$player1_id, $player2_id];
     
     if ($matchday_date && !empty($matchday_date)) {
-        $date_filter = " AND s.created_at >= date(?, '-7 days') AND s.created_at <= date(?, '+7 days')";
+        $date_filter = " AND s.created_at >= date(?, '-2 days') AND s.created_at <= date(?, '+2 days')";
         $params[] = $matchday_date;
         $params[] = $matchday_date;
     }
@@ -737,7 +737,7 @@ function findSetStatsWithInfo($db, $player1_id, $player2_id, $expected_legs1, $e
     // $debug_info[] = "Matchday date: " . ($matchday_date ?: 'Not set');
     
     if ($matchday_date && !empty($matchday_date)) {
-        $date_filter = " AND s.created_at >= date(?, '-7 days') AND s.created_at <= date(?, '+7 days')";
+        $date_filter = " AND s.created_at >= date(?, '-2 days') AND s.created_at <= date(?, '+2 days')";
         $params[] = $matchday_date;
         $params[] = $matchday_date;
         // $debug_info[] = "Date filter: ±7 days from $matchday_date";
