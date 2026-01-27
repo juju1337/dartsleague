@@ -110,8 +110,8 @@ function loadSets() {
     if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
-            // Skip empty rows
-            if (empty($row) || count($row) < 16) {
+            // Skip empty rows - now expecting 24 columns
+            if (empty($row) || count($row) < 24) {
                 continue;
             }
             
@@ -131,7 +131,16 @@ function loadSets() {
                 'highscore1' => isset($row[12]) ? $row[12] : '',
                 'highscore2' => isset($row[13]) ? $row[13] : '',
                 'highco1' => isset($row[14]) ? $row[14] : '',
-                'highco2' => isset($row[15]) ? $row[15] : ''
+                'highco2' => isset($row[15]) ? $row[15] : '',
+                // NEW FIELDS ADDED:
+                'bestleg1' => isset($row[16]) ? $row[16] : '',
+                'bestleg2' => isset($row[17]) ? $row[17] : '',
+                '180s1' => isset($row[18]) ? $row[18] : '',
+                '180s2' => isset($row[19]) ? $row[19] : '',
+                '140s1' => isset($row[20]) ? $row[20] : '',
+                '140s2' => isset($row[21]) ? $row[21] : '',
+                '100s1' => isset($row[22]) ? $row[22] : '',
+                '100s2' => isset($row[23]) ? $row[23] : ''
             ];
         }
         fclose($fp);
@@ -297,6 +306,15 @@ function handleStatsImport() {
                     $csv_set['highscore2'] = $stats['highscore2'];
                     $csv_set['highco1'] = $stats['highco1'];
                     $csv_set['highco2'] = $stats['highco2'];
+                    // NEW ASSIGNMENTS:
+                    $csv_set['bestleg1'] = $stats['bestleg1'];
+                    $csv_set['bestleg2'] = $stats['bestleg2'];
+                    $csv_set['180s1'] = $stats['180s1'];
+                    $csv_set['180s2'] = $stats['180s2'];
+                    $csv_set['140s1'] = $stats['140s1'];
+                    $csv_set['140s2'] = $stats['140s2'];
+                    $csv_set['100s1'] = $stats['100s1'];
+                    $csv_set['100s2'] = $stats['100s2'];
                     
                     $imported_count++;
                 }
@@ -405,7 +423,15 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
         'highscore1' => 0,
         'highscore2' => 0,
         'highco1' => 0,
-        'highco2' => 0
+        'highco2' => 0,
+        'bestleg1' => 0,
+        'bestleg2' => 0,
+        '180s1' => 0,
+        '180s2' => 0,
+        '140s1' => 0,
+        '140s2' => 0,
+        '100s1' => 0,
+        '100s2' => 0
     ];
     
     $total_score1 = 0;
@@ -428,15 +454,34 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
         $stmt->execute([$leg_id, $player1_id, $player2_id]);
         $player_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Get the winner of this leg
+        $stmt = $db->prepare("SELECT siegerId FROM xGameMpLeg WHERE id = ?");
+        $stmt->execute([$leg_id]);
+        $leg_winner = $stmt->fetchColumn();
+        
         foreach ($player_stats as $ps) {
             $is_player1 = ($ps['spielerId'] == $player1_id);
             
             if ($is_player1) {
                 $stats['darts1'] += $ps['gesamtDarts'];
                 $total_score1 += $ps['gesamtScore'];
+                
+                // Track best leg (fewest darts to checkout) - only for winning legs
+                if ($leg_winner == $player1_id) {
+                    if ($stats['bestleg1'] == 0 || $ps['gesamtDarts'] < $stats['bestleg1']) {
+                        $stats['bestleg1'] = $ps['gesamtDarts'];
+                    }
+                }
             } else {
                 $stats['darts2'] += $ps['gesamtDarts'];
                 $total_score2 += $ps['gesamtScore'];
+                
+                // Track best leg (fewest darts to checkout) - only for winning legs
+                if ($leg_winner == $player2_id) {
+                    if ($stats['bestleg2'] == 0 || $ps['gesamtDarts'] < $stats['bestleg2']) {
+                        $stats['bestleg2'] = $ps['gesamtDarts'];
+                    }
+                }
             }
         }
         
@@ -512,6 +557,57 @@ function extractSetStats($db, $set_id, $player1_id, $player2_id) {
                     $stats['dblattempts2'] += $result;
                 }
             }
+            
+            // Count 180s
+            $stmt = $db->prepare("
+                SELECT COUNT(*) as count_180s
+                FROM aufnahmeMp
+                WHERE entityId = ? AND entityName = 'XGame' AND score = 180
+            ");
+            $stmt->execute([$entity_id]);
+            $result = $stmt->fetchColumn();
+            
+            if ($result !== null && $result !== false) {
+                if ($is_player1) {
+                    $stats['180s1'] += $result;
+                } else {
+                    $stats['180s2'] += $result;
+                }
+            }
+            
+            // Count 140+ scores (140-179)
+            $stmt = $db->prepare("
+                SELECT COUNT(*) as count_140s
+                FROM aufnahmeMp
+                WHERE entityId = ? AND entityName = 'XGame' AND score >= 140 AND score <= 179
+            ");
+            $stmt->execute([$entity_id]);
+            $result = $stmt->fetchColumn();
+            
+            if ($result !== null && $result !== false) {
+                if ($is_player1) {
+                    $stats['140s1'] += $result;
+                } else {
+                    $stats['140s2'] += $result;
+                }
+            }
+            
+            // Count 100+ scores (100-139)
+            $stmt = $db->prepare("
+                SELECT COUNT(*) as count_100s
+                FROM aufnahmeMp
+                WHERE entityId = ? AND entityName = 'XGame' AND score >= 100 AND score <= 139
+            ");
+            $stmt->execute([$entity_id]);
+            $result = $stmt->fetchColumn();
+            
+            if ($result !== null && $result !== false) {
+                if ($is_player1) {
+                    $stats['100s1'] += $result;
+                } else {
+                    $stats['100s2'] += $result;
+                }
+            }
         }
     }
     
@@ -530,7 +626,8 @@ function saveSets($sets) {
         return;
     }
     
-    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
+    // NEW HEADER with 8 additional columns:
+    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2', 'bestleg1', 'bestleg2', '180s1', '180s2', '140s1', '140s2', '100s1', '100s2']);
     
     foreach ($sets as $set) {
         fputcsv($fp, [
@@ -540,16 +637,25 @@ function saveSets($sets) {
             $set['player2id'],
             $set['legs1'],
             $set['legs2'],
-            $set['darts1'],
-            $set['darts2'],
-            $set['3da1'],
-            $set['3da2'],
-            $set['dblattempts1'],
-            $set['dblattempts2'],
-            $set['highscore1'],
-            $set['highscore2'],
-            $set['highco1'],
-            $set['highco2']
+            isset($set['darts1']) ? $set['darts1'] : '',
+            isset($set['darts2']) ? $set['darts2'] : '',
+            isset($set['3da1']) ? $set['3da1'] : '',
+            isset($set['3da2']) ? $set['3da2'] : '',
+            isset($set['dblattempts1']) ? $set['dblattempts1'] : '',
+            isset($set['dblattempts2']) ? $set['dblattempts2'] : '',
+            isset($set['highscore1']) ? $set['highscore1'] : '',
+            isset($set['highscore2']) ? $set['highscore2'] : '',
+            isset($set['highco1']) ? $set['highco1'] : '',
+            isset($set['highco2']) ? $set['highco2'] : '',
+            // NEW FIELDS ADDED:
+            isset($set['bestleg1']) ? $set['bestleg1'] : '',
+            isset($set['bestleg2']) ? $set['bestleg2'] : '',
+            isset($set['180s1']) ? $set['180s1'] : '',
+            isset($set['180s2']) ? $set['180s2'] : '',
+            isset($set['140s1']) ? $set['140s1'] : '',
+            isset($set['140s2']) ? $set['140s2'] : '',
+            isset($set['100s1']) ? $set['100s1'] : '',
+            isset($set['100s2']) ? $set['100s2'] : ''
         ]);
     }
     
@@ -1131,10 +1237,14 @@ function resetImport() {
                                         <?php foreach ($info['matches'] as $idx => $match): ?>
                                             <option value="<?php echo $idx; ?>" <?php echo $idx === 0 ? 'selected' : ''; ?>>
                                                 Created: <?php echo $match['created_at']; ?> | 
-                                                3DA: <?php echo $match['stats']['3da1']; ?>/<?php echo $match['stats']['3da2']; ?> | 
+                                                Avg: <?php echo $match['stats']['3da1']; ?>/<?php echo $match['stats']['3da2']; ?> | 
                                                 Darts: <?php echo $match['stats']['darts1']; ?>/<?php echo $match['stats']['darts2']; ?> | 
-                                                High Score: <?php echo $match['stats']['highscore1']; ?>/<?php echo $match['stats']['highscore2']; ?> | 
-                                                High CO: <?php echo $match['stats']['highco1']; ?>/<?php echo $match['stats']['highco2']; ?>
+                                                Highscore: <?php echo $match['stats']['highscore1']; ?>/<?php echo $match['stats']['highscore2']; ?> | 
+                                                Highest Checkout: <?php echo $match['stats']['highco1']; ?>/<?php echo $match['stats']['highco2']; ?> |
+                                                Best Leg: <?php echo $match['stats']['bestleg1']; ?>/<?php echo $match['stats']['bestleg2']; ?> | 
+                                                180s: <?php echo $match['stats']['180s1']; ?>/<?php echo $match['stats']['180s2']; ?> |
+                                                140s: <?php echo $match['stats']['140s1']; ?>/<?php echo $match['stats']['140s2']; ?> |
+                                                100s: <?php echo $match['stats']['100s1']; ?>/<?php echo $match['stats']['00s2']; ?> 
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -1143,11 +1253,15 @@ function resetImport() {
                                 <div class="matched-info" style="margin-top: 8px; padding: 8px; border-left: 3px solid #4caf50; font-size: 0.9em;"><strong>✓ Matched SQLite Set:</strong> Created at <?php echo $info['matches'][0]['created_at']; ?>
                                     <br>
                                     <strong>Stats to import:</strong>
-                                    3DA: <?php echo $info['matches'][0]['stats']['3da1']; ?> / <?php echo $info['matches'][0]['stats']['3da2']; ?> |
+                                    Avg: <?php echo $info['matches'][0]['stats']['3da1']; ?> / <?php echo $info['matches'][0]['stats']['3da2']; ?> |
                                     Darts: <?php echo $info['matches'][0]['stats']['darts1']; ?> / <?php echo $info['matches'][0]['stats']['darts2']; ?> |
                                     Dbl Attempts: <?php echo $info['matches'][0]['stats']['dblattempts1']; ?> / <?php echo $info['matches'][0]['stats']['dblattempts2']; ?> |
-                                    High Score: <?php echo $info['matches'][0]['stats']['highscore1']; ?> / <?php echo $info['matches'][0]['stats']['highscore2']; ?> |
-                                    High CO: <?php echo $info['matches'][0]['stats']['highco1']; ?> / <?php echo $info['matches'][0]['stats']['highco2']; ?>
+                                    Highscore: <?php echo $info['matches'][0]['stats']['highscore1']; ?> / <?php echo $info['matches'][0]['stats']['highscore2']; ?> |
+                                    Highest Checkout: <?php echo $info['matches'][0]['stats']['highco1']; ?> / <?php echo $info['matches'][0]['stats']['highco2']; ?> |
+                                    Best Leg: <?php echo $info['matches'][0]['stats']['bestleg1']; ?> / <?php echo $info['matches'][0]['stats']['bestleg2']; ?> |
+                                    180s: <?php echo $info['matches'][0]['stats']['180s1']; ?> / <?php echo $info['matches'][0]['stats']['180s2']; ?> |
+                                    140+: <?php echo $info['matches'][0]['stats']['140s1']; ?> / <?php echo $info['matches'][0]['stats']['140s2']; ?> |
+                                    100+: <?php echo $info['matches'][0]['stats']['100s1']; ?> / <?php echo $info['matches'][0]['stats']['100s2']; ?>
                                     <input type="hidden" name="match_selection[<?php echo $set['id']; ?>]" value="0">
                                 </div>
                             <?php endif; ?>
@@ -1247,11 +1361,15 @@ function resetImport() {
                     <table style="margin-top: 10px; width: 100%; font-size: 0.9em;">
                         <tr>
                             <th>Player</th>
-                            <th>3DA</th>
+                            <th>Avg</th>
                             <th>Darts</th>
-                            <th>Dbl Att.</th>
-                            <th>High Score</th>
-                            <th>High CO</th>
+                            <th>Dbl Attempts</th>
+                            <th>Highscore</th>
+                            <th>Highest Checkout</th>
+                            <th>Best Leg</th>
+                            <th>180s</th>
+                            <th>140+</th>
+                            <th>100+</th>
                         </tr>
                         <tr>
                             <td><?php echo htmlspecialchars(getPlayerName($set['player1id'])); ?></td>
@@ -1260,6 +1378,10 @@ function resetImport() {
                             <td><?php echo $selected_match['stats']['dblattempts1']; ?></td>
                             <td><?php echo $selected_match['stats']['highscore1']; ?></td>
                             <td><?php echo $selected_match['stats']['highco1']; ?></td>
+                            <td><?php echo $selected_match['stats']['bestleg1']; ?></td>
+                            <td><?php echo $selected_match['stats']['180s1']; ?></td>
+                            <td><?php echo $selected_match['stats']['140s1']; ?></td>
+                            <td><?php echo $selected_match['stats']['100s1']; ?></td>
                         </tr>
                         <tr>
                             <td><?php echo htmlspecialchars(getPlayerName($set['player2id'])); ?></td>
@@ -1268,6 +1390,10 @@ function resetImport() {
                             <td><?php echo $selected_match['stats']['dblattempts2']; ?></td>
                             <td><?php echo $selected_match['stats']['highscore2']; ?></td>
                             <td><?php echo $selected_match['stats']['highco2']; ?></td>
+                            <td><?php echo $selected_match['stats']['bestleg2']; ?></td>
+                            <td><?php echo $selected_match['stats']['180s2']; ?></td>
+                            <td><?php echo $selected_match['stats']['140s2']; ?></td>
+                            <td><?php echo $selected_match['stats']['100s2']; ?></td>
                         </tr>
                     </table>
                 </div>
