@@ -595,7 +595,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <th>Avg</th>
                                 <th>Double Att.</th>
                                 <th>Highscore</th>
-                                <th>Highest CO</th>
+                                <th>Highest Checkout</th>
                                 <th>Action</th>
                             </tr>
                             <?php 
@@ -656,7 +656,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <th>Avg</th>
                                     <th>Double Att.</th>
                                     <th>Highscore</th>
-                                    <th>Highest CO</th>
+                                    <th>Highest Checkout</th>
                                 </tr>
                                 <tr>
                                     <td><?php echo getPlayerName($match['player1id']); ?></td>
@@ -1133,8 +1133,8 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <!--end-->
                                     <th>Avg</th>
                                     <th>Double Att.</th>
-                                    <th>High Score</th>
-                                    <th>High CO</th>
+                                    <th>Highscore</th>
+                                    <th>Highest Checkout</th>
                                     <th>Action</th>
                                 </tr>
                                 <?php 
@@ -1195,7 +1195,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                         <th>Avg</th>
                                         <th>Double Att.</th>
                                         <th>Highscore</th>
-                                        <th>Highest CO</th>
+                                        <th>Highest Checkout</th>
                                     </tr>
                                     <tr>
                                         <td><?php echo getPlayerName($match['player1id']); ?></td>
@@ -1593,8 +1593,8 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <th>Leg Diff</th>
                             <th>Avg</th>
                             <th>Doubles %</th>
-                            <th>High Score</th>
-                            <th>High CO</th>
+                            <th>Highscore</th>
+                            <th>Highest Checkout</th>
                         </tr>
                         <?php 
                         $pos = 1;
