@@ -714,8 +714,8 @@ function getPlayerName($player_id) {
                 <div class="warning"><?php echo $login_error; ?></div>
             <?php endif; ?>
             <form method="POST">
-                <label>Password:</label><br>
-                <input type="password" name="password" required><br>
+                <label>Password:</label>
+                <input type="password" name="password" required>
                 <input type="submit" name="login" value="Login">
             </form>
         </div>
