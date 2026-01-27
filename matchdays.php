@@ -574,9 +574,9 @@ function saveExtraPoints($matchday_id, $extra_points) {
         <p>
             <strong>Date:</strong> <?php echo $md['date'] ? $md['date'] : 'Not set'; ?> | 
             <strong>Location:</strong> <?php echo $md['location'] ? $md['location'] : 'Not set'; ?>
-            <?php if ($is_admin): ?>
+            <!--<?php if ($is_admin): ?>
                 | <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
-            <?php endif; ?>
+            <?php endif; ?>-->
         </p>
         
         <!-- Group Phase Matches
@@ -1899,7 +1899,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                 <td>
                     <a href="matchdays.php?view=<?php echo $md['id']; ?>"><button>View Details</button></a>
                     <?php if ($is_admin): ?>
-                        <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit</button></a>
+                        <a href="matchdays.php?edit=<?php echo $md['id']; ?>"><button>Edit Date/Location</button></a>
                     <?php endif; ?>
                 </td>
             </tr>
