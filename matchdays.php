@@ -1485,7 +1485,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <th>Avg</th>
                             <th>Doubles %</th>
                             <th class="detailed-stats-col playoff-stats" style="display: none;">Highscore</th>
-                            <th class="detailed-stats-col playoff-stats" style="display: none;">Highest Checkout CO</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">Highest Checkout</th>
                             <th class="detailed-stats-col playoff-stats" style="display: none;">Best Leg</th>
                             <th class="detailed-stats-col playoff-stats" style="display: none;">180s</th>
                             <th class="detailed-stats-col playoff-stats" style="display: none;">140+</th>
@@ -1921,6 +1921,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
         <?php endif; ?>
 </body>
 </html>
+
 
 
 
