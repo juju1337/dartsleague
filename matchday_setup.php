@@ -100,6 +100,10 @@ function generateTournament($config) {
     fputcsv($fp_score, ['best_dbl', '1', $config['score_best_dbl']]);
     fputcsv($fp_score, ['best_hs', '1', $config['score_best_hs']]);
     fputcsv($fp_score, ['best_hco', '1', $config['score_best_hco']]);
+    fputcsv($fp_score, ['best_leg', '1', isset($config['score_best_leg']) ? $config['score_best_leg'] : 0]);
+    fputcsv($fp_score, ['most_180s', '1', isset($config['score_most_180s']) ? $config['score_most_180s'] : 0]);
+    fputcsv($fp_score, ['most_140s', '1', isset($config['score_most_140s']) ? $config['score_most_140s'] : 0]);
+    fputcsv($fp_score, ['most_100s', '1', isset($config['score_most_100s']) ? $config['score_most_100s'] : 0]);
     
     fclose($fp_score);
     
@@ -114,7 +118,7 @@ function generateTournament($config) {
     $sets_file = 'tables/sets.csv';
     if (file_exists($sets_file)) {
         $fp = fopen($sets_file, 'w');
-        fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
+        fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2', 'bestleg1', 'bestleg2', '180s1', '180s2', '140s1', '140s2', '100s1', '100s2']);
         fclose($fp);
     }
     
@@ -636,6 +640,22 @@ function getPlayerName($player_id) {
                     <tr>
                         <td>Highest Checkout</td>
                         <td><input type="number" name="score_best_hco" min="0" value="2" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Best Leg (fewest darts)</td>
+                        <td><input type="number" name="score_best_leg" min="0" value="2" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Most 180s</td>
+                        <td><input type="number" name="score_most_180s" min="0" value="1" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Most 140+ Scores</td>
+                        <td><input type="number" name="score_most_140s" min="0" value="1" required style="width: 60px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Most 100+ Scores</td>
+                        <td><input type="number" name="score_most_100s" min="0" value="1" required style="width: 60px;"></td>
                     </tr>
                 </table>
             </div>

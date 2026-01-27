@@ -510,7 +510,11 @@ function getPlayerName($player_id) {
                     'dbl_attempts' => 0,
                     'dbl_hit' => 0,
                     'highscore' => 0,
-                    'highco' => 0
+                    'highco' => 0,
+                    'bestleg' => PHP_INT_MAX,   // Initialize to max value (we're looking for minimum)
+                    '180s' => 0,                 // Count of 180s
+                    '140s' => 0,                 // Count of 140+ scores
+                    '100s' => 0                  // Count of 100+ scores
                 ];
             }
             
@@ -557,6 +561,25 @@ function getPlayerName($player_id) {
                             if (intval($row[15]) > $md_stats[$p2id]['highco']) {
                                 $md_stats[$p2id]['highco'] = intval($row[15]);
                             }
+                            
+                            // Best leg - track the lowest value (fewest darts)
+                            $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
+                            $bestleg2 = isset($row[17]) ? intval($row[17]) : 0;
+
+                            if ($bestleg1 > 0 && $bestleg1 < $md_stats[$p1id]['bestleg']) {
+                                $md_stats[$p1id]['bestleg'] = $bestleg1;
+                            }
+                            if ($bestleg2 > 0 && $bestleg2 < $md_stats[$p2id]['bestleg']) {
+                                $md_stats[$p2id]['bestleg'] = $bestleg2;
+                            }
+
+                            // Accumulate counts
+                            $md_stats[$p1id]['180s'] += isset($row[18]) ? intval($row[18]) : 0;
+                            $md_stats[$p2id]['180s'] += isset($row[19]) ? intval($row[19]) : 0;
+                            $md_stats[$p1id]['140s'] += isset($row[20]) ? intval($row[20]) : 0;
+                            $md_stats[$p2id]['140s'] += isset($row[21]) ? intval($row[21]) : 0;
+                            $md_stats[$p1id]['100s'] += isset($row[22]) ? intval($row[22]) : 0;
+                            $md_stats[$p2id]['100s'] += isset($row[23]) ? intval($row[23]) : 0;
                         }
                     }
                     fclose($fp);
@@ -635,6 +658,76 @@ function getPlayerName($player_id) {
             foreach ($best_hco_players as $pid) {
                 if (isset($scoring_scheme['best_hco']['1'])) {
                     $overall_stats[$pid]['points'] += $scoring_scheme['best_hco']['1'];
+                }
+            }
+            
+            // Best Leg
+            $best_leg = PHP_INT_MAX;
+            $best_leg_players = [];
+            foreach ($md_stats as $pid => $stats) {
+                if ($stats['bestleg'] > 0 && $stats['bestleg'] < PHP_INT_MAX) {
+                    if ($stats['bestleg'] < $best_leg) {
+                        $best_leg = $stats['bestleg'];
+                        $best_leg_players = [$pid];
+                    } elseif ($stats['bestleg'] == $best_leg) {
+                        $best_leg_players[] = $pid;
+                    }
+                }
+            }
+            foreach ($best_leg_players as $pid) {
+                if (isset($scoring_scheme['best_leg']['1'])) {
+                    $overall_stats[$pid]['points'] += $scoring_scheme['best_leg']['1'];
+                }
+            }
+            
+            //Most 180s
+            $most_180s = 0;
+            $most_180s_players = [];
+            foreach ($md_stats as $pid => $stats) {
+                if ($stats['180s'] > $most_180s) {
+                    $most_180s = $stats['180s'];
+                    $most_180s_players = [$pid];
+                } elseif ($stats['180s'] == $most_180s && $stats['180s'] > 0) {
+                    $most_180s_players[] = $pid;
+                }
+            }
+            foreach ($most_180s_players as $pid) {
+                if (isset($scoring_scheme['most_180s']['1'])) {
+                    $overall_stats[$pid]['points'] += $scoring_scheme['most_180s']['1'];
+                }
+            }
+            
+            //Most 140+
+            $most_140s = 0;
+            $most_140s_players = [];
+            foreach ($md_stats as $pid => $stats) {
+                if ($stats['140s'] > $most_140s) {
+                    $most_140s = $stats['140s'];
+                    $most_140s_players = [$pid];
+                } elseif ($stats['140s'] == $most_140s && $stats['140s'] > 0) {
+                    $most_140s_players[] = $pid;
+                }
+            }
+            foreach ($most_140s_players as $pid) {
+                if (isset($scoring_scheme['most_140s']['1'])) {
+                    $overall_stats[$pid]['points'] += $scoring_scheme['most_140s']['1'];
+                }
+            }
+            
+            //Most 100+
+            $most_100s = 0;
+            $most_100s_players = [];
+            foreach ($md_stats as $pid => $stats) {
+                if ($stats['100s'] > $most_100s) {
+                    $most_100s = $stats['100s'];
+                    $most_100s_players = [$pid];
+                } elseif ($stats['100s'] == $most_100s && $stats['100s'] > 0) {
+                    $most_100s_players[] = $pid;
+                }
+            }
+            foreach ($most_100s_players as $pid) {
+                if (isset($scoring_scheme['most_100s']['1'])) {
+                    $overall_stats[$pid]['points'] += $scoring_scheme['most_100s']['1'];
                 }
             }
             

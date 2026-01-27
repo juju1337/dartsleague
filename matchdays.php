@@ -281,7 +281,15 @@ function loadSets($match_id) {
                     'highscore1' => $row[12],
                     'highscore2' => $row[13],
                     'highco1' => $row[14],
-                    'highco2' => $row[15]
+                    'highco2' => $row[15],
+                    'bestleg1' => isset($row[16]) ? $row[16] : '',
+                    'bestleg2' => isset($row[17]) ? $row[17] : '',
+                    '180s1' => isset($row[18]) ? $row[18] : '',
+                    '180s2' => isset($row[19]) ? $row[19] : '',
+                    '140s1' => isset($row[20]) ? $row[20] : '',
+                    '140s2' => isset($row[21]) ? $row[21] : '',
+                    '100s1' => isset($row[22]) ? $row[22] : '',
+                    '100s2' => isset($row[23]) ? $row[23] : ''
                 ];
             }
         }
@@ -377,7 +385,15 @@ function addSet($data) {
         $data['highscore1'],
         $data['highscore2'],
         $data['highco1'],
-        $data['highco2']
+        $data['highco2'],
+        isset($data['bestleg1']) ? $data['bestleg1'] : 0,
+        isset($data['bestleg2']) ? $data['bestleg2'] : 0,
+        isset($data['180s1']) ? $data['180s1'] : 0,
+        isset($data['180s2']) ? $data['180s2'] : 0,
+        isset($data['140s1']) ? $data['140s1'] : 0,
+        isset($data['140s2']) ? $data['140s2'] : 0,
+        isset($data['100s1']) ? $data['100s1'] : 0,
+        isset($data['100s2']) ? $data['100s2'] : 0
     ]);
     fclose($fp);
     
@@ -419,7 +435,7 @@ function deleteSet($set_id) {
     }
     
     $fp = fopen($sets_file, 'w');
-    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2']);
+    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2', 'bestleg1', 'bestleg2', '180s1', '180s2', '140s1', '140s2', '100s1', '100s2']);
     foreach ($all_sets as $set) {
         fputcsv($fp, $set);
     }
@@ -596,6 +612,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <th>Double Att.</th>
                                 <th>Highscore</th>
                                 <th>Highest Checkout</th>
+                                <th>Best Leg</th>
+                                <th>180s</th>
+                                <th>140+</th>
+                                <th>100+</th>
                                 <th>Action</th>
                             </tr>
                             <?php 
@@ -613,6 +633,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <td><?php echo $set['dblattempts1']; ?></td>
                                 <td><?php echo $set['highscore1']; ?></td>
                                 <td><?php echo $set['highco1']; ?></td>
+                                <td><?php echo $set['bestleg1']; ?></td>
+                                <td><?php echo $set['180s1']; ?></td>
+                                <td><?php echo $set['140s1']; ?></td>
+                                <td><?php echo $set['100s1']; ?></td>
                                 <td rowspan="2">
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this set?');">
                                         <input type="hidden" name="set_id" value="<?php echo $set['id']; ?>">
@@ -632,6 +656,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <td><?php echo $set['dblattempts2']; ?></td>
                                 <td><?php echo $set['highscore2']; ?></td>
                                 <td><?php echo $set['highco2']; ?></td>
+                                <td><?php echo $set['bestleg2']; ?></td>
+                                <td><?php echo $set['180s2']; ?></td>
+                                <td><?php echo $set['140s2']; ?></td>
+                                <td><?php echo $set['100s2']; ?></td>
                             </tr>
                             <?php 
                             $set_num++;
@@ -657,6 +685,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <th>Double Att.</th>
                                     <th>Highscore</th>
                                     <th>Highest Checkout</th>
+                                    <th>Best Leg</th>
+                                    <th>180s</th>
+                                    <th>140+</th>
+                                    <th>100+</th>
                                 </tr>
                                 <tr>
                                     <td><?php echo getPlayerName($match['player1id']); ?></td>
@@ -668,6 +700,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <td><input type="number" name="dblattempts1" min="0" value="0" required style="width: 60px;"></td>
                                     <td><input type="number" name="highscore1" min="0" max="180" value="0" required style="width: 60px;"></td>
                                     <td><input type="number" name="highco1" min="0" max="170" value="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="bestleg1" min="0" value="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="180s1" min="0" value="0" required style="width: 50px;"></td>
+                                    <td><input type="number" name="140s1" min="0" value="0" required style="width: 50px;"></td>
+                                    <td><input type="number" name="100s1" min="0" value="0" required style="width: 50px;"></td>
                                 </tr>
                                 <tr>
                                     <td><?php echo getPlayerName($match['player2id']); ?></td>
@@ -679,6 +715,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <td><input type="number" name="dblattempts2" min="0" value="0" required style="width: 60px;"></td>
                                     <td><input type="number" name="highscore2" min="0" max="180" value="0" required style="width: 60px;"></td>
                                     <td><input type="number" name="highco2" min="0" max="170" value="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="bestleg2" min="0" value="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="180s2" min="0" value="0" required style="width: 50px;"></td>
+                                    <td><input type="number" name="140s2" min="0" value="0" required style="width: 50px;"></td>
+                                    <td><input type="number" name="100s2" min="0" value="0" required style="width: 50px;"></td>
                                 </tr>
                             </table>
                             
