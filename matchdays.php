@@ -857,7 +857,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                 
                 <table style="margin-bottom: 20px;">
                     <tr>
-                        <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>">
+                        <th colspan="<?php echo $show_sets ? (10 + count($sets_data)) : 10; ?>">
                             Match #<?php echo $match['id']; ?>
                             <?php if ($is_admin): ?>
                                 <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>#match<?php echo $match['id']; ?>" style="float: right;"><button type="button">Enter/Edit Scores</button></a>
@@ -1465,7 +1465,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     
                     <table style="margin-bottom: 20px;">
                         <tr>
-                            <th colspan="<?php echo $show_sets ? (4 + count($sets_data)) : 4; ?>">
+                            <th colspan="<?php echo $show_sets ? (10 + count($sets_data)) : 10; ?>">
                                 <?php echo getPhaseLabel($match['phase']); ?>
                                 <?php if ($is_admin): ?>
                                     <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>#match<?php echo $match['id']; ?>" style="float: right;"><button type="button">Enter/Edit Scores</button></a>
