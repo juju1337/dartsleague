@@ -65,7 +65,7 @@ td:first-child {
 
 td.player-name, th.player-name {
     width: 300px;
-    font-weight: 500;
+    /* font-weight: 500; */
 }
 
 tr:hover {
@@ -654,7 +654,7 @@ hr + p {
     
     input[type="submit"],
     button {
-        width: 100%;
+        /* width: 100%; */
         margin: 0.25rem 0;
     }
     
