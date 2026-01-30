@@ -421,8 +421,22 @@ function addSet($data) {
 }
 
 function deleteSet($set_id) {
-    global $sets_file;
+    global $sets_file, $matches_file;
     
+    // First, find the match_id of the set being deleted
+    $match_id = null;
+    if (($fp = fopen($sets_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            if ($row[0] == $set_id) {
+                $match_id = $row[1]; // matchid column
+                break;
+            }
+        }
+        fclose($fp);
+    }
+    
+    // Delete the set from sets.csv
     $all_sets = [];
     if (($fp = fopen($sets_file, 'r')) !== false) {
         $header = fgetcsv($fp);
@@ -440,6 +454,49 @@ function deleteSet($set_id) {
         fputcsv($fp, $set);
     }
     fclose($fp);
+    
+    // Recalculate match totals if we found a match_id
+    if ($match_id !== null) {
+        // Count remaining sets for this match
+        $sets_won_p1 = 0;
+        $sets_won_p2 = 0;
+        
+        foreach ($all_sets as $set) {
+            if ($set[1] == $match_id) { // matchid column
+                $legs1 = intval($set[4]);
+                $legs2 = intval($set[5]);
+                
+                if ($legs1 > $legs2) {
+                    $sets_won_p1++;
+                } elseif ($legs2 > $legs1) {
+                    $sets_won_p2++;
+                }
+            }
+        }
+        
+        // Update matches.csv with new totals
+        $all_matches = [];
+        if (($fp = fopen($matches_file, 'r')) !== false) {
+            $header = fgetcsv($fp);
+            while (($row = fgetcsv($fp)) !== false) {
+                if ($row[0] == $match_id) {
+                    // Update sets1 and sets2
+                    $row[7] = $sets_won_p1;
+                    $row[8] = $sets_won_p2;
+                }
+                $all_matches[] = $row;
+            }
+            fclose($fp);
+        }
+        
+        // Write back to matches.csv
+        $fp = fopen($matches_file, 'w');
+        fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
+        foreach ($all_matches as $match) {
+            fputcsv($fp, $match);
+        }
+        fclose($fp);
+    }
 }
 
 function getPlayerName($player_id) {
