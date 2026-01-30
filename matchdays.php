@@ -652,7 +652,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <th>Total Darts</th>
                                 <!--end-->
                                 <th>Avg</th>
-                                <th>Double Att.</th>
+                                <th>Double Attempts</th>
                                 <th>Highscore</th>
                                 <th>Highest Checkout</th>
                                 <th>Best Leg</th>
@@ -685,7 +685,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                         <input type="hidden" name="set_id" value="<?php echo $set['id']; ?>">
                                         <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
                                         <input type="hidden" name="matchday_id" value="<?php echo $md['id']; ?>">
-                                        <input type="submit" name="delete_set" value="Delete">
+                                        <input type="submit" name="delete_set" value="Delete Set">
                                     </form>
                                 </td>
                             </tr>
@@ -725,7 +725,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <th>Total Darts</th>
                                     <!--end-->
                                     <th>Avg</th>
-                                    <th>Double Att.</th>
+                                    <th>Double Attempts</th>
                                     <th>Highscore</th>
                                     <th>Highest Checkout</th>
                                     <th>Best Leg</th>
@@ -1340,7 +1340,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     <th>Total Darts</th>
                                     <!--end-->
                                     <th>Avg</th>
-                                    <th>Double Att.</th>
+                                    <th>Double Attempts</th>
                                     <th>Highscore</th>
                                     <th>Highest Checkout</th>
                                     <th>Action</th>
@@ -1401,7 +1401,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                         <th>Total Darts</th>
                                         <!--end-->
                                         <th>Avg</th>
-                                        <th>Double Att.</th>
+                                        <th>Double Attemps</th>
                                         <th>Highscore</th>
                                         <th>Highest Checkout</th>
                                     </tr>
