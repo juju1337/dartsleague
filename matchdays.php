@@ -958,7 +958,15 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     'legs_against' => 0,
                     'points' => 0,
                     'total_darts' => 0,
-                    'total_legs' => 0
+                    'total_legs' => 0,
+                    'dbl_attempts' => 0,
+                    'dbl_hit' => 0,
+                    'bestleg' => PHP_INT_MAX,
+                    '180s' => 0,
+                    '140s' => 0,
+                    '100s' => 0,
+                    'highscore' => 0,
+                    'highco' => 0
                 ];
             }
             
@@ -1014,7 +1022,41 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     $standings[$p2id]['total_darts'] += $da2 * $total_legs_in_set;
                                     $standings[$p2id]['total_legs'] += $total_legs_in_set;
                                 }
-
+                                
+                                // Double attempts and hits
+                                $standings[$p1id]['dbl_attempts'] += intval($row[10]);
+                                $standings[$p2id]['dbl_attempts'] += intval($row[11]);
+                                $standings[$p1id]['dbl_hit'] += $legs1;
+                                $standings[$p2id]['dbl_hit'] += $legs2;
+                                
+                                // Detailed stats
+                                $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
+                                $bestleg2 = isset($row[17]) ? intval($row[17]) : 0;
+                                
+                                if ($bestleg1 > 0 && $bestleg1 < $standings[$p1id]['bestleg']) {
+                                    $standings[$p1id]['bestleg'] = $bestleg1;
+                                }
+                                if ($bestleg2 > 0 && $bestleg2 < $standings[$p2id]['bestleg']) {
+                                    $standings[$p2id]['bestleg'] = $bestleg2;
+                                }
+                                
+                                $standings[$p1id]['180s'] += isset($row[18]) ? intval($row[18]) : 0;
+                                $standings[$p2id]['180s'] += isset($row[19]) ? intval($row[19]) : 0;
+                                $standings[$p1id]['140s'] += isset($row[20]) ? intval($row[20]) : 0;
+                                $standings[$p2id]['140s'] += isset($row[21]) ? intval($row[21]) : 0;
+                                $standings[$p1id]['100s'] += isset($row[22]) ? intval($row[22]) : 0;
+                                $standings[$p2id]['100s'] += isset($row[23]) ? intval($row[23]) : 0;
+                                
+                                $hs1 = isset($row[12]) ? intval($row[12]) : 0;
+                                $hs2 = isset($row[13]) ? intval($row[13]) : 0;
+                                if ($hs1 > $standings[$p1id]['highscore']) $standings[$p1id]['highscore'] = $hs1;
+                                if ($hs2 > $standings[$p2id]['highscore']) $standings[$p2id]['highscore'] = $hs2;
+                                
+                                $hco1 = isset($row[14]) ? intval($row[14]) : 0;
+                                $hco2 = isset($row[15]) ? intval($row[15]) : 0;
+                                if ($hco1 > $standings[$p1id]['highco']) $standings[$p1id]['highco'] = $hco1;
+                                if ($hco2 > $standings[$p2id]['highco']) $standings[$p2id]['highco'] = $hco2;
+                                
                             }
                         }
                         fclose($fp);
@@ -1048,12 +1090,20 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     <th>Leg Diff</th>
                     <th>Points</th>
                     <th>Avg</th>
+                    <th>Doubles %</th>
+                    <th class="detailed-stats-col group-stats" style="display: none;">Highscore</th>
+                    <th class="detailed-stats-col group-stats" style="display: none;">Highest Checkout</th>
+                    <th class="detailed-stats-col group-stats" style="display: none;">Best Leg</th>
+                    <th class="detailed-stats-col group-stats" style="display: none;">180s</th>
+                    <th class="detailed-stats-col group-stats" style="display: none;">140+</th>
+                    <th class="detailed-stats-col group-stats" style="display: none;">100+</th>
                 </tr>
                 <?php 
                 $pos = 1;
                 foreach ($standings as $s): 
                     $three_da = ($s['total_legs'] > 0) ? round($s['total_darts'] / $s['total_legs'], 2) : '-';
                     //$three_da = ($s['total_legs'] > 0) ? round(($s['total_darts'] / $s['total_legs']) * 3, 2) : '-';
+                    $dbl_pct = ($s['dbl_attempts'] > 0) ? round(($s['dbl_hit'] / $s['dbl_attempts']) * 100, 1) . '%' : '-';
                 ?>
                 <tr>
                     <td><?php echo $pos++; ?></td>
@@ -1066,6 +1116,13 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     <td><?php echo $s['legs_for'] - $s['legs_against']; ?></td>
                     <td><strong><?php echo $s['points']; ?></strong></td>
                     <td><?php echo $three_da; ?></td>
+                    <td><?php echo $dbl_pct; ?></td>
+                    <td class="detailed-stats-col group-stats" style="display: none;"><?php echo $s['highscore'] > 0 ? $s['highscore'] : '-'; ?></td>
+                    <td class="detailed-stats-col group-stats" style="display: none;"><?php echo $s['highco'] > 0 ? $s['highco'] : '-'; ?></td>
+                    <td class="detailed-stats-col group-stats" style="display: none;"><?php echo ($s['bestleg'] < PHP_INT_MAX) ? $s['bestleg'] : '-'; ?></td>
+                    <td class="detailed-stats-col group-stats" style="display: none;"><?php echo $s['180s']; ?></td>
+                    <td class="detailed-stats-col group-stats" style="display: none;"><?php echo $s['140s']; ?></td>
+                    <td class="detailed-stats-col group-stats" style="display: none;"><?php echo $s['100s']; ?></td>
                 </tr>
                 <?php endforeach; ?>
             </table>
@@ -1667,6 +1724,10 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             'total_legs' => 0,
                             'dbl_attempts' => 0,
                             'dbl_hit' => 0,
+                            'bestleg' => PHP_INT_MAX,
+                            '180s' => 0,
+                            '140s' => 0,
+                            '100s' => 0,
                             'highscore' => 0,
                             'highco' => 0,
                             'final_position' => 999
@@ -1750,6 +1811,25 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                         if ($hco2 > $overall_standings[$p2id]['highco']) {
                                             $overall_standings[$p2id]['highco'] = $hco2;
                                         }
+                                        
+                                        // Detailed stats
+                                        $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
+                                        $bestleg2 = isset($row[17]) ? intval($row[17]) : 0;
+
+                                        if ($bestleg1 > 0 && $bestleg1 < $overall_standings[$p1id]['bestleg']) {
+                                            $overall_standings[$p1id]['bestleg'] = $bestleg1;
+                                        }
+                                        if ($bestleg2 > 0 && $bestleg2 < $overall_standings[$p2id]['bestleg']) {
+                                            $overall_standings[$p2id]['bestleg'] = $bestleg2;
+                                        }
+
+                                        $overall_standings[$p1id]['180s'] += isset($row[18]) ? intval($row[18]) : 0;
+                                        $overall_standings[$p2id]['180s'] += isset($row[19]) ? intval($row[19]) : 0;
+                                        $overall_standings[$p1id]['140s'] += isset($row[20]) ? intval($row[20]) : 0;
+                                        $overall_standings[$p2id]['140s'] += isset($row[21]) ? intval($row[21]) : 0;
+                                        $overall_standings[$p1id]['100s'] += isset($row[22]) ? intval($row[22]) : 0;
+                                        $overall_standings[$p2id]['100s'] += isset($row[23]) ? intval($row[23]) : 0;
+                                        
                                     }
                                 }
                                 fclose($fp);
@@ -1791,8 +1871,12 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <th>Leg Diff</th>
                             <th>Avg</th>
                             <th>Doubles %</th>
-                            <th>Highscore</th>
-                            <th>Highest Checkout</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">Highscore</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">Highest Checkout</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">Best Leg</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">180s</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">140+</th>
+                            <th class="detailed-stats-col playoff-stats" style="display: none;">100+</th>
                         </tr>
                         <?php 
                         $pos = 1;
@@ -1811,8 +1895,13 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <td><?php echo $s['legs_for'] - $s['legs_against']; ?></td>
                             <td><?php echo $three_da; ?></td>
                             <td><?php echo $dbl_pct; ?></td>
-                            <td><?php echo $s['highscore'] > 0 ? $s['highscore'] : '-'; ?></td>
-                            <td><?php echo $s['highco'] > 0 ? $s['highco'] : '-'; ?></td>
+                            <td class="detailed-stats-col playoff-stats" style="display: none;"><?php echo $s['highscore'] > 0 ? $s['highscore'] : '-'; ?></td>
+                            <td class="detailed-stats-col playoff-stats" style="display: none;"><?php echo $s['highco'] > 0 ? $s['highco'] : '-'; ?></td>
+                            <td class="detailed-stats-col playoff-stats" style="display: none;"><?php echo ($s['bestleg'] < PHP_INT_MAX) ? $s['bestleg'] : '-'; ?></td>
+                            <td class="detailed-stats-col playoff-stats" style="display: none;"><?php echo $s['180s']; ?></td>
+                            <td class="detailed-stats-col playoff-stats" style="display: none;"><?php echo $s['140s']; ?></td>
+                            <td class="detailed-stats-col playoff-stats" style="display: none;"><?php echo $s['100s']; ?></td>
+
                         </tr>
                         <?php endforeach; ?>
                     </table>
