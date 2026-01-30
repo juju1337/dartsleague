@@ -625,7 +625,7 @@ hr + p {
     }
 
     nav a {
-        display: block;
+        /* display: block; */
         padding: 0.5rem 0;
         margin-right: 0;
     }
@@ -709,8 +709,8 @@ hr + p {
 /* Improve touch targets for mobile */
 @media (max-width: 768px) {
     a, button, input[type="submit"] {
-        min-height: 44px;
-        display: inline-flex;
+        /* min-height: 44px;
+        display: inline-flex; */
         align-items: center;
         justify-content: center;
     }
