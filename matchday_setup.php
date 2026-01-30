@@ -634,7 +634,7 @@ function getPlayerName($player_id) {
                         <td><input type="number" name="score_best_dbl" min="0" value="1" required style="width: 60px;"></td>
                     </tr>
                     <tr>
-                        <td>Highest Score (180, etc.)</td>
+                        <td>Best Highscore</td>
                         <td><input type="number" name="score_best_hs" min="0" value="2" required style="width: 60px;"></td>
                     </tr>
                     <tr>
@@ -642,7 +642,7 @@ function getPlayerName($player_id) {
                         <td><input type="number" name="score_best_hco" min="0" value="2" required style="width: 60px;"></td>
                     </tr>
                     <tr>
-                        <td>Best Leg (fewest darts)</td>
+                        <td>Best Leg</td>
                         <td><input type="number" name="score_best_leg" min="0" value="2" required style="width: 60px;"></td>
                     </tr>
                     <tr>
