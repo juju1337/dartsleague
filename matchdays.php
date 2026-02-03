@@ -43,9 +43,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (isset($_POST['delete_set'])) {
-        deleteSet($_POST['set_id']);
-        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id']);
-        exit;
+        $set_id = $_POST['set_id'];
+        $match_id = $_POST['match_id'];
+        $matchday_id = $_POST['matchday_id'];
+        
+        // Check if confirmed cascade delete
+        if (isset($_POST['confirm_cascade'])) {
+            // User confirmed - delete set and reset cascading phases
+            $cascade_info = checkCascadeEffects($set_id);
+            if ($cascade_info['has_cascade']) {
+                resetCascadingPhases($cascade_info);
+            }
+            deleteSet($set_id);
+            $_SESSION['success'] = 'Set deleted successfully. ' . ($cascade_info['has_cascade'] ? 'Affected phases have been reset.' : '');
+            header('Location: matchdays.php?view=' . $matchday_id . '&edit_match=' . $match_id . '#match' . $match_id);
+            exit;
+        }
+        
+        // Check if this deletion will cause cascade effects
+        $cascade_info = checkCascadeEffects($set_id);
+        
+        if ($cascade_info['has_cascade']) {
+            // Show warning page
+            $_SESSION['cascade_warning'] = $cascade_info;
+            $_SESSION['delete_set_data'] = [
+                'set_id' => $set_id,
+                'match_id' => $match_id,
+                'matchday_id' => $matchday_id
+            ];
+            header('Location: matchdays.php?view=' . $matchday_id . '&edit_match=' . $match_id . '&show_cascade_warning=1#match' . $match_id);
+            exit;
+        } else {
+            // No cascade - delete directly
+            deleteSet($set_id);
+            $_SESSION['success'] = 'Set deleted successfully.';
+            header('Location: matchdays.php?view=' . $matchday_id . '&edit_match=' . $match_id . '#match' . $match_id);
+            exit;
+        }
     }
     
     if (isset($_POST['save_extra_points'])) {
@@ -511,6 +545,165 @@ function deleteSet($set_id) {
     }
 }
 
+function checkCascadeEffects($set_id) {
+    global $sets_file, $matches_file;
+    
+    $cascade_info = [
+        'has_cascade' => false,
+        'affected_phases' => [],
+        'set_phase' => null,
+        'matchday_id' => null
+    ];
+    
+    // Find the set and its match
+    $match_id = null;
+    if (($fp = fopen($sets_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            if ($row[0] == $set_id) {
+                $match_id = $row[1];
+                break;
+            }
+        }
+        fclose($fp);
+    }
+    
+    if (!$match_id) {
+        return $cascade_info;
+    }
+    
+    // Find the match phase and matchday
+    $match_phase = null;
+    $matchday_id = null;
+    if (($fp = fopen($matches_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            if ($row[0] == $match_id) {
+                $matchday_id = $row[1];
+                $match_phase = $row[2];
+                break;
+            }
+        }
+        fclose($fp);
+    }
+    
+    if (!$match_phase || !$matchday_id) {
+        return $cascade_info;
+    }
+    
+    $cascade_info['set_phase'] = $match_phase;
+    $cascade_info['matchday_id'] = $matchday_id;
+    
+    // Check for cascading effects based on phase
+    if ($match_phase == 'group') {
+        // Check if any playoff matches are assigned for this matchday
+        if (($fp = fopen($matches_file, 'r')) !== false) {
+            $header = fgetcsv($fp);
+            while (($row = fgetcsv($fp)) !== false) {
+                if ($row[1] == $matchday_id && in_array($row[2], ['semi1', 'semi2', 'final', 'third'])) {
+                    // Check if assigned (player IDs are not 0)
+                    if (intval($row[5]) != 0 || intval($row[6]) != 0) {
+                        $cascade_info['has_cascade'] = true;
+                        if (!in_array('playoffs', $cascade_info['affected_phases'])) {
+                            $cascade_info['affected_phases'][] = 'playoffs';
+                        }
+                    }
+                }
+            }
+            fclose($fp);
+        }
+    } elseif (in_array($match_phase, ['semi1', 'semi2'])) {
+        // Check if finals are assigned for this matchday
+        if (($fp = fopen($matches_file, 'r')) !== false) {
+            $header = fgetcsv($fp);
+            while (($row = fgetcsv($fp)) !== false) {
+                if ($row[1] == $matchday_id && in_array($row[2], ['final', 'third'])) {
+                    // Check if assigned (player IDs are not 0)
+                    if (intval($row[5]) != 0 || intval($row[6]) != 0) {
+                        $cascade_info['has_cascade'] = true;
+                        if (!in_array('finals', $cascade_info['affected_phases'])) {
+                            $cascade_info['affected_phases'][] = 'finals';
+                        }
+                    }
+                }
+            }
+            fclose($fp);
+        }
+    }
+    
+    return $cascade_info;
+}
+
+function resetCascadingPhases($cascade_info) {
+    global $matches_file, $sets_file;
+    
+    $matchday_id = $cascade_info['matchday_id'];
+    $set_phase = $cascade_info['set_phase'];
+    
+    $phases_to_reset = [];
+    
+    if ($set_phase == 'group') {
+        // Reset all playoff phases
+        $phases_to_reset = ['semi1', 'semi2', 'final', 'third'];
+    } elseif (in_array($set_phase, ['semi1', 'semi2'])) {
+        // Reset finals only
+        $phases_to_reset = ['final', 'third'];
+    }
+    
+    if (empty($phases_to_reset)) {
+        return;
+    }
+    
+    // Step 1: Delete all sets from affected matches
+    $matches_to_reset = [];
+    $all_matches = [];
+    
+    if (($fp = fopen($matches_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            if ($row[1] == $matchday_id && in_array($row[2], $phases_to_reset)) {
+                $matches_to_reset[] = $row[0]; // Store match ID
+                // Reset match: clear players and scores
+                $row[5] = 0; // player1id
+                $row[6] = 0; // player2id
+                $row[7] = 0; // sets1
+                $row[8] = 0; // sets2
+            }
+            $all_matches[] = $row;
+        }
+        fclose($fp);
+    }
+    
+    // Step 2: Delete sets from affected matches
+    $all_sets = [];
+    if (($fp = fopen($sets_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            // Keep set only if its match is NOT in the reset list
+            if (!in_array($row[1], $matches_to_reset)) {
+                $all_sets[] = $row;
+            }
+        }
+        fclose($fp);
+    }
+    
+    // Step 3: Write back updated matches.csv
+    $fp = fopen($matches_file, 'w');
+    fputcsv($fp, ['id', 'matchdayid', 'phase', 'firsttosets', 'firsttolegs', 'player1id', 'player2id', 'sets1', 'sets2']);
+    foreach ($all_matches as $match) {
+        fputcsv($fp, $match);
+    }
+    fclose($fp);
+    
+    // Step 4: Write back updated sets.csv
+    $fp = fopen($sets_file, 'w');
+    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2', 'bestleg1', 'bestleg2', '180s1', '180s2', '140s1', '140s2', '100s1', '100s2']);
+    foreach ($all_sets as $set) {
+        fputcsv($fp, $set);
+    }
+    fclose($fp);
+}
+
 function updateSetStats($data) {
     global $sets_file;
     
@@ -759,6 +952,60 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     
                     <?php if (isset($_SESSION['success'])): ?>
                         <div class="info"><?php echo $_SESSION['success']; unset($_SESSION['success']); ?></div>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($_GET['show_cascade_warning']) && isset($_SESSION['cascade_warning'])): ?>
+                        <?php 
+                        $cascade = $_SESSION['cascade_warning'];
+                        $delete_data = $_SESSION['delete_set_data'];
+                        ?>
+                        <div class="warning" style="border: 3px solid #ff0000; padding: 20px; margin: 20px 0; background-color: #fff3cd;">
+                            <h3 style="color: #ff0000; margin-top: 0;">⚠️ CASCADE DELETE WARNING</h3>
+                            <p><strong>Deleting this set will change the <?php echo $cascade['set_phase'] == 'group' ? 'group standings' : 'semi-final results'; ?>!</strong></p>
+                            
+                            <p>This will <strong>RESET and INVALIDATE</strong>:</p>
+                            <ul style="color: #d00;">
+                                <?php if ($cascade['set_phase'] == 'group'): ?>
+                                    <li>✗ All Playoff assignments (players will be cleared)</li>
+                                    <li>✗ All Semi-Final results (if entered)</li>
+                                    <li>✗ Final and 3rd Place Match assignments (if assigned)</li>
+                                    <li>✗ All Final results (if entered)</li>
+                                <?php elseif (in_array($cascade['set_phase'], ['semi1', 'semi2'])): ?>
+                                    <li>✗ Final and 3rd Place Match assignments (players will be cleared)</li>
+                                    <li>✗ All Final results (if entered)</li>
+                                    <li>✗ All 3rd Place Match results (if entered)</li>
+                                <?php endif; ?>
+                            </ul>
+                            
+                            <p>After deletion, you will need to:</p>
+                            <ul style="color: #000;">
+                                <?php if ($cascade['set_phase'] == 'group'): ?>
+                                    <li>→ Re-assign all Playoff matches based on new group standings</li>
+                                    <li>→ Re-enter all Playoff results</li>
+                                <?php elseif (in_array($cascade['set_phase'], ['semi1', 'semi2'])): ?>
+                                    <li>→ Re-assign Finals based on new semi-final results</li>
+                                    <li>→ Re-enter all Final results</li>
+                                <?php endif; ?>
+                            </ul>
+                            
+                            <p style="margin-top: 20px;"><strong>Are you absolutely sure you want to continue?</strong></p>
+                            
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="set_id" value="<?php echo $delete_data['set_id']; ?>">
+                                <input type="hidden" name="match_id" value="<?php echo $delete_data['match_id']; ?>">
+                                <input type="hidden" name="matchday_id" value="<?php echo $delete_data['matchday_id']; ?>">
+                                <input type="hidden" name="confirm_cascade" value="1">
+                                <input type="submit" name="delete_set" value="Yes, Delete and Reset Everything" style="background-color: #dc3545; color: white; padding: 10px 20px; font-size: 16px; font-weight: bold;">
+                            </form>
+                            
+                            <a href="matchdays.php?view=<?php echo $delete_data['matchday_id']; ?>&edit_match=<?php echo $delete_data['match_id']; ?>#match<?php echo $delete_data['match_id']; ?>">
+                                <button type="button" style="background-color: #28a745; color: white; padding: 10px 20px; font-size: 16px; font-weight: bold;">Cancel - Keep Everything</button>
+                            </a>
+                        </div>
+                        <?php 
+                        unset($_SESSION['cascade_warning']);
+                        unset($_SESSION['delete_set_data']);
+                        ?>
                     <?php endif; ?>
                     
                     <p><strong><?php echo getPlayerName($match['player1id']); ?></strong> vs <strong><?php echo getPlayerName($match['player2id']); ?></strong></p>
@@ -1493,6 +1740,60 @@ function saveExtraPoints($matchday_id, $extra_points) {
                         
                         <?php if (isset($_SESSION['success'])): ?>
                             <div class="info"><?php echo $_SESSION['success']; unset($_SESSION['success']); ?></div>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($_GET['show_cascade_warning']) && isset($_SESSION['cascade_warning'])): ?>
+                            <?php 
+                            $cascade = $_SESSION['cascade_warning'];
+                            $delete_data = $_SESSION['delete_set_data'];
+                            ?>
+                            <div class="warning" style="border: 3px solid #ff0000; padding: 20px; margin: 20px 0; background-color: #fff3cd;">
+                                <h3 style="color: #ff0000; margin-top: 0;">⚠️ CASCADE DELETE WARNING</h3>
+                                <p><strong>Deleting this set will change the <?php echo $cascade['set_phase'] == 'group' ? 'group standings' : 'semi-final results'; ?>!</strong></p>
+                                
+                                <p>This will <strong>RESET and INVALIDATE</strong>:</p>
+                                <ul style="color: #d00;">
+                                    <?php if ($cascade['set_phase'] == 'group'): ?>
+                                        <li>✗ All Playoff assignments (players will be cleared)</li>
+                                        <li>✗ All Semi-Final results (if entered)</li>
+                                        <li>✗ Final and 3rd Place Match assignments (if assigned)</li>
+                                        <li>✗ All Final results (if entered)</li>
+                                    <?php elseif (in_array($cascade['set_phase'], ['semi1', 'semi2'])): ?>
+                                        <li>✗ Final and 3rd Place Match assignments (players will be cleared)</li>
+                                        <li>✗ All Final results (if entered)</li>
+                                        <li>✗ All 3rd Place Match results (if entered)</li>
+                                    <?php endif; ?>
+                                </ul>
+                                
+                                <p>After deletion, you will need to:</p>
+                                <ul style="color: #000;">
+                                    <?php if ($cascade['set_phase'] == 'group'): ?>
+                                        <li>→ Re-assign all Playoff matches based on new group standings</li>
+                                        <li>→ Re-enter all Playoff results</li>
+                                    <?php elseif (in_array($cascade['set_phase'], ['semi1', 'semi2'])): ?>
+                                        <li>→ Re-assign Finals based on new semi-final results</li>
+                                        <li>→ Re-enter all Final results</li>
+                                    <?php endif; ?>
+                                </ul>
+                                
+                                <p style="margin-top: 20px;"><strong>Are you absolutely sure you want to continue?</strong></p>
+                                
+                                <form method="POST" style="display: inline;">
+                                    <input type="hidden" name="set_id" value="<?php echo $delete_data['set_id']; ?>">
+                                    <input type="hidden" name="match_id" value="<?php echo $delete_data['match_id']; ?>">
+                                    <input type="hidden" name="matchday_id" value="<?php echo $delete_data['matchday_id']; ?>">
+                                    <input type="hidden" name="confirm_cascade" value="1">
+                                    <input type="submit" name="delete_set" value="Yes, Delete and Reset Everything" style="background-color: #dc3545; color: white; padding: 10px 20px; font-size: 16px; font-weight: bold;">
+                                </form>
+                                
+                                <a href="matchdays.php?view=<?php echo $delete_data['matchday_id']; ?>&edit_match=<?php echo $delete_data['match_id']; ?>#match<?php echo $delete_data['match_id']; ?>">
+                                    <button type="button" style="background-color: #28a745; color: white; padding: 10px 20px; font-size: 16px; font-weight: bold;">Cancel - Keep Everything</button>
+                                </a>
+                            </div>
+                            <?php 
+                            unset($_SESSION['cascade_warning']);
+                            unset($_SESSION['delete_set_data']);
+                            ?>
                         <?php endif; ?>
                         
                         <p><strong><?php echo getPlayerName($match['player1id']); ?></strong> vs <strong><?php echo getPlayerName($match['player2id']); ?></strong></p>
