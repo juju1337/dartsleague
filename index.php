@@ -377,8 +377,14 @@ function getPlayerName($player_id) {
                             // Double attempts and hits
                             $overall_stats[$p1id]['dbl_attempts'] += intval($row[10]);
                             $overall_stats[$p2id]['dbl_attempts'] += intval($row[11]);
-                            $overall_stats[$p1id]['dbl_hit'] += $legs1;
-                            $overall_stats[$p2id]['dbl_hit'] += $legs2;
+                            
+                            // Count successful doubles (= legs won) - only when double attempts are recorded
+                            if (intval($row[10]) > 0) {
+                                $overall_stats[$p1id]['dbl_hit'] += $legs1;
+                            }
+                            if (intval($row[11]) > 0) {
+                                $overall_stats[$p2id]['dbl_hit'] += $legs2;
+                            }
                         }
                     }
                     fclose($fp);
@@ -546,8 +552,14 @@ function getPlayerName($player_id) {
                             
                             $md_stats[$p1id]['dbl_attempts'] += intval($row[10]);
                             $md_stats[$p2id]['dbl_attempts'] += intval($row[11]);
-                            $md_stats[$p1id]['dbl_hit'] += $legs1;
-                            $md_stats[$p2id]['dbl_hit'] += $legs2;
+                            
+                            // Count successful doubles (= legs won) - only when double attempts are recorded
+                            if (intval($row[10]) > 0) {
+                                $md_stats[$p1id]['dbl_hit'] += $legs1;
+                            }
+                            if (intval($row[11]) > 0) {
+                                $md_stats[$p2id]['dbl_hit'] += $legs2;
+                            }
                             
                             if (intval($row[12]) > $md_stats[$p1id]['highscore']) {
                                 $md_stats[$p1id]['highscore'] = intval($row[12]);

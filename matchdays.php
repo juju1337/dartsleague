@@ -51,8 +51,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_extra_points'])) {
         saveExtraPoints($_POST['matchday_id'], $_POST['extra_points']);
         header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '#extrapoints');
-    exit;
+        exit;
     }
+    
+    if (isset($_POST['update_set_stats'])) {
+        $result = updateSetStats($_POST);
+        if ($result['success']) {
+            $_SESSION['success'] = $result['message'];
+        } else {
+            $_SESSION['error'] = $result['message'];
+        }
+        header('Location: matchdays.php?view=' . $_POST['matchday_id'] . '&edit_match=' . $_POST['match_id'] . '#match' . $_POST['match_id']);
+        exit;
+}
 
 }
 
@@ -65,6 +76,7 @@ $all_matches = loadMatches();
 $view_matchday = isset($_GET['view']) ? intval($_GET['view']) : null;
 $edit_matchday = isset($_GET['edit']) ? intval($_GET['edit']) : null;
 $edit_match = isset($_GET['edit_match']) ? intval($_GET['edit_match']) : null;
+$edit_set = isset($_GET['edit_set']) ? intval($_GET['edit_set']) : null;
 
 // Functions
 function loadPlayers() {
@@ -499,6 +511,60 @@ function deleteSet($set_id) {
     }
 }
 
+function updateSetStats($data) {
+    global $sets_file;
+    
+    $set_id = intval($data['set_id']);
+    
+    // Read all sets
+    $all_sets = [];
+    $updated = false;
+    
+    if (($fp = fopen($sets_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            if ($row[0] == $set_id) {
+                // Update only the stats, keep legs the same
+                $row[6] = intval($data['darts1']); // darts1
+                $row[7] = intval($data['darts2']); // darts2
+                $row[8] = floatval($data['3da1']); // 3da1
+                $row[9] = floatval($data['3da2']); // 3da2
+                $row[10] = intval($data['dblattempts1']); // dblattempts1
+                $row[11] = intval($data['dblattempts2']); // dblattempts2
+                $row[12] = intval($data['highscore1']); // highscore1
+                $row[13] = intval($data['highscore2']); // highscore2
+                $row[14] = intval($data['highco1']); // highco1
+                $row[15] = intval($data['highco2']); // highco2
+                $row[16] = intval($data['bestleg1']); // bestleg1
+                $row[17] = intval($data['bestleg2']); // bestleg2
+                $row[18] = intval($data['180s1']); // 180s1
+                $row[19] = intval($data['180s2']); // 180s2
+                $row[20] = intval($data['140s1']); // 140s1
+                $row[21] = intval($data['140s2']); // 140s2
+                $row[22] = intval($data['100s1']); // 100s1
+                $row[23] = intval($data['100s2']); // 100s2
+                $updated = true;
+            }
+            $all_sets[] = $row;
+        }
+        fclose($fp);
+    }
+    
+    if (!$updated) {
+        return ['success' => false, 'message' => 'Set not found.'];
+    }
+    
+    // Write back to CSV
+    $fp = fopen($sets_file, 'w');
+    fputcsv($fp, ['id', 'matchid', 'player1id', 'player2id', 'legs1', 'legs2', 'darts1', 'darts2', '3da1', '3da2', 'dblattempts1', 'dblattempts2', 'highscore1', 'highscore2', 'highco1', 'highco2', 'bestleg1', 'bestleg2', '180s1', '180s2', '140s1', '140s2', '100s1', '100s2']);
+    foreach ($all_sets as $set) {
+        fputcsv($fp, $set);
+    }
+    fclose($fp);
+    
+    return ['success' => true, 'message' => 'Set statistics updated successfully.'];
+}
+
 function getPlayerName($player_id) {
     global $players;
     if ($player_id == 0) return 'TBD';
@@ -721,14 +787,53 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <?php 
                             $set_num = 1;
                             foreach ($match_sets as $set): 
+                                $is_editing_set = ($edit_set == $set['id']);  // ← NEW: Check if this set is being edited
                             ?>
+                            <?php if ($is_editing_set): ?>
+                            <!-- EDIT MODE -->
+                            <form method="POST">
+                                <input type="hidden" name="set_id" value="<?php echo $set['id']; ?>">
+                                <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
+                                <input type="hidden" name="matchday_id" value="<?php echo $md['id']; ?>">
+                                <tr style="background-color: #ffffcc;">
+                                    <td rowspan="2"><strong><?php echo $set_num; ?></strong></td>
+                                    <td><?php echo getPlayerName($match['player1id']); ?></td>
+                                    <td><strong><?php echo $set['legs1']; ?></strong></td>
+                                    <td><input type="number" name="darts1" value="<?php echo $set['darts1']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="3da1" value="<?php echo $set['3da1']; ?>" min="0" max="180" step="0.01" required style="width: 60px;"></td>
+                                    <td><input type="number" name="dblattempts1" value="<?php echo $set['dblattempts1']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="highscore1" value="<?php echo $set['highscore1']; ?>" min="0" max="180" required style="width: 60px;"></td>
+                                    <td><input type="number" name="highco1" value="<?php echo $set['highco1']; ?>" min="0" max="170" required style="width: 60px;"></td>
+                                    <td><input type="number" name="bestleg1" value="<?php echo $set['bestleg1']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="180s1" value="<?php echo $set['180s1']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="140s1" value="<?php echo $set['140s1']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="100s1" value="<?php echo $set['100s1']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td rowspan="2">
+                                        <input type="submit" name="update_set_stats" value="Save Stats" style="background-color: #4CAF50; color: white;">
+                                        <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>#match<?php echo $match['id']; ?>"><button type="button">Cancel</button></a>
+                                    </td>
+                                </tr>
+                                <tr style="background-color: #ffffcc;">
+                                    <td><?php echo getPlayerName($match['player2id']); ?></td>
+                                    <td><strong><?php echo $set['legs2']; ?></strong></td>
+                                    <td><input type="number" name="darts2" value="<?php echo $set['darts2']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="3da2" value="<?php echo $set['3da2']; ?>" min="0" max="180" step="0.01" required style="width: 60px;"></td>
+                                    <td><input type="number" name="dblattempts2" value="<?php echo $set['dblattempts2']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="highscore2" value="<?php echo $set['highscore2']; ?>" min="0" max="180" required style="width: 60px;"></td>
+                                    <td><input type="number" name="highco2" value="<?php echo $set['highco2']; ?>" min="0" max="170" required style="width: 60px;"></td>
+                                    <td><input type="number" name="bestleg2" value="<?php echo $set['bestleg2']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="180s2" value="<?php echo $set['180s2']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="140s2" value="<?php echo $set['140s2']; ?>" min="0" required style="width: 60px;"></td>
+                                    <td><input type="number" name="100s2" value="<?php echo $set['100s2']; ?>" min="0" required style="width: 60px;"></td>
+                                </tr>
+                            </form>
+                            <?php else: ?>
+                            <!-- DISPLAY MODE -->
                             <tr>
                                 <td rowspan="2"><?php echo $set_num; ?></td>
                                 <td><?php echo getPlayerName($match['player1id']); ?></td>
                                 <td><?php echo $set['legs1']; ?></td>
-                                <!--Added manually-->
                                 <td><?php echo $set['darts1']; ?></td>
-                                <!--end-->
                                 <td><?php echo $set['3da1']; ?></td>
                                 <td><?php echo $set['dblattempts1']; ?></td>
                                 <td><?php echo $set['highscore1']; ?></td>
@@ -738,6 +843,8 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <td><?php echo $set['140s1']; ?></td>
                                 <td><?php echo $set['100s1']; ?></td>
                                 <td rowspan="2">
+                                    <a href="matchdays.php?view=<?php echo $md['id']; ?>&edit_match=<?php echo $match['id']; ?>&edit_set=<?php echo $set['id']; ?>#match<?php echo $match['id']; ?>"><button type="button">Edit Stats</button></a>
+                                    <br><br>
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this set?');">
                                         <input type="hidden" name="set_id" value="<?php echo $set['id']; ?>">
                                         <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
@@ -749,9 +856,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             <tr>
                                 <td><?php echo getPlayerName($match['player2id']); ?></td>
                                 <td><?php echo $set['legs2']; ?></td>
-                                <!--Added manually-->
                                 <td><?php echo $set['darts2']; ?></td>
-                                <!--end-->
                                 <td><?php echo $set['3da2']; ?></td>
                                 <td><?php echo $set['dblattempts2']; ?></td>
                                 <td><?php echo $set['highscore2']; ?></td>
@@ -761,6 +866,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 <td><?php echo $set['140s2']; ?></td>
                                 <td><?php echo $set['100s2']; ?></td>
                             </tr>
+                            <?php endif; ?>
                             <?php 
                             $set_num++;
                             endforeach; 
@@ -1083,8 +1189,14 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                 // Double attempts and hits
                                 $standings[$p1id]['dbl_attempts'] += intval($row[10]);
                                 $standings[$p2id]['dbl_attempts'] += intval($row[11]);
-                                $standings[$p1id]['dbl_hit'] += $legs1;
-                                $standings[$p2id]['dbl_hit'] += $legs2;
+                                
+                                // Count successful doubles (= legs won) - only when double attempts are recorded
+                                if (intval($row[10]) > 0) {
+                                    $standings[$p1id]['dbl_hit'] += $legs1;
+                                }
+                                if (intval($row[11]) > 0) {
+                                    $standings[$p2id]['dbl_hit'] += $legs2;
+                                }
                                 
                                 // Detailed stats
                                 $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
@@ -1430,7 +1542,7 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                             <input type="hidden" name="set_id" value="<?php echo $set['id']; ?>">
                                             <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
                                             <input type="hidden" name="matchday_id" value="<?php echo $md['id']; ?>">
-                                            <input type="submit" name="delete_set" value="Delete">
+                                            <input type="submit" name="delete_set" value="Delete Set">
                                         </form>
                                     </td>
                                 </tr>
@@ -1555,9 +1667,13 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                     $p1_stats['3da_weighted'] += floatval($row[8]) * $total_legs_in_set; // 3da1 * total legs
                                     $p2_stats['3da_weighted'] += floatval($row[9]) * $total_legs_in_set; // 3da2 * total legs
                                     
-                                    // Count successful doubles (= legs won)
-                                    $p1_stats['dbl_hit'] += $legs1;
-                                    $p2_stats['dbl_hit'] += $legs2;
+                                    // Count successful doubles (= legs won) - only when double attempts are recorded
+                                    if (intval($row[10]) > 0) {
+                                        $p1_stats['dbl_hit'] += $legs1;
+                                    }
+                                    if (intval($row[11]) > 0) {
+                                        $p2_stats['dbl_hit'] += $legs2;
+                                    }
                                     
                                     // New stats
                                     $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
@@ -1871,8 +1987,14 @@ function saveExtraPoints($matchday_id, $extra_points) {
                                         // Double attempts and hits
                                         $overall_standings[$p1id]['dbl_attempts'] += intval($row[10]);
                                         $overall_standings[$p2id]['dbl_attempts'] += intval($row[11]);
-                                        $overall_standings[$p1id]['dbl_hit'] += $legs1;
-                                        $overall_standings[$p2id]['dbl_hit'] += $legs2;
+                                        
+                                        // Count successful doubles (= legs won) - only when double attempts are recorded
+                                        if (intval($row[10]) > 0) {
+                                            $overall_standings[$p1id]['dbl_hit'] += $legs1;
+                                        }
+                                        if (intval($row[11]) > 0) {
+                                            $overall_standings[$p2id]['dbl_hit'] += $legs2;
+                                        }
                                         
                                         // High scores and checkouts
                                         $hs1 = intval($row[12]);
