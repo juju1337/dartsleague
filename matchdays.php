@@ -1304,12 +1304,33 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             ?>
                         </td>
                         <?php if ($show_sets): ?>
-                            <td><strong><?php echo $match['sets1']; ?></strong></td>
+                            <td>
+                                <?php 
+                                $p1_won = (intval($match['sets1']) > intval($match['sets2']));
+                                if ($p1_won) echo '<strong>';
+                                echo $match['sets1'];
+                                if ($p1_won) echo '</strong>';
+                                ?>
+                            </td>
                             <?php foreach ($sets_data as $set): ?>
-                                <td><?php echo $set['legs1']; ?></td>
+                                <td>
+                                    <?php 
+                                    $legs1_won = (intval($set['legs1']) > intval($set['legs2']));
+                                    if ($legs1_won) echo '<strong>';
+                                    echo $set['legs1'];
+                                    if ($legs1_won) echo '</strong>';
+                                    ?>
+                                </td>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <td><strong><?php echo $p1_stats['dbl_hit']; ?></strong></td>
+                            <td>
+                                <?php 
+                                $p1_won = (intval($match['sets1']) > intval($match['sets2']));
+                                if ($p1_won) echo '<strong>';
+                                echo $p1_stats['dbl_hit'];
+                                if ($p1_won) echo '</strong>';
+                                ?>
+                            </td>
                         <?php endif; ?>
                         <td><?php echo $p1_3da; ?></td>
                         <td><?php echo $p1_dbl; ?></td>
@@ -1330,12 +1351,33 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             ?>
                         </td>
                         <?php if ($show_sets): ?>
-                            <td><strong><?php echo $match['sets2']; ?></strong></td>
+                            <td>
+                                <?php 
+                                $p2_won = (intval($match['sets2']) > intval($match['sets1']));
+                                if ($p2_won) echo '<strong>';
+                                echo $match['sets2'];
+                                if ($p2_won) echo '</strong>';
+                                ?>
+                            </td>
                             <?php foreach ($sets_data as $set): ?>
-                                <td><?php echo $set['legs2']; ?></td>
+                                <td>
+                                    <?php 
+                                    $legs2_won = (intval($set['legs2']) > intval($set['legs1']));
+                                    if ($legs2_won) echo '<strong>';
+                                    echo $set['legs2'];
+                                    if ($legs2_won) echo '</strong>';
+                                    ?>
+                                </td>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <td><strong><?php echo $p2_stats['dbl_hit']; ?></strong></td>
+                            <td>
+                                <?php 
+                                $p2_won = (intval($match['sets2']) > intval($match['sets1']));
+                                if ($p2_won) echo '<strong>';
+                                echo $p2_stats['dbl_hit'];
+                                if ($p2_won) echo '</strong>';
+                                ?>
+                            </td>
                         <?php endif; ?>
                         <td><?php echo $p2_3da; ?></td>
                         <td><?php echo $p2_dbl; ?></td>
@@ -2056,12 +2098,33 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             ?>
                         </td>
                             <?php if ($show_sets): ?>
-                                <td><strong><?php echo $match['sets1']; ?></strong></td>
+                                <td>
+                                    <?php 
+                                    $p1_won = (intval($match['sets1']) > intval($match['sets2']));
+                                    if ($p1_won) echo '<strong>';
+                                    echo $match['sets1'];
+                                    if ($p1_won) echo '</strong>';
+                                    ?>
+                                </td>
                                 <?php foreach ($sets_data as $set): ?>
-                                    <td><?php echo $set['legs1']; ?></td>
+                                    <td>
+                                        <?php 
+                                        $legs1_won = (intval($set['legs1']) > intval($set['legs2']));
+                                        if ($legs1_won) echo '<strong>';
+                                        echo $set['legs1'];
+                                        if ($legs1_won) echo '</strong>';
+                                        ?>
+                                    </td>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <td><strong><?php echo $p1_stats['dbl_hit']; ?></strong></td>
+                                <td>
+                                    <?php 
+                                    $p1_won = (intval($match['sets1']) > intval($match['sets2']));
+                                    if ($p1_won) echo '<strong>';
+                                    echo $p1_stats['dbl_hit'];
+                                    if ($p1_won) echo '</strong>';
+                                    ?>
+                                </td>
                             <?php endif; ?>
                             <td><?php echo $p1_3da; ?></td>
                             <td><?php echo $p1_dbl; ?></td>
@@ -2082,12 +2145,33 @@ function saveExtraPoints($matchday_id, $extra_points) {
                             ?>
                         </td>
                             <?php if ($show_sets): ?>
-                                <td><strong><?php echo $match['sets2']; ?></strong></td>
+                                <td>
+                                    <?php 
+                                    $p2_won = (intval($match['sets2']) > intval($match['sets1']));
+                                    if ($p2_won) echo '<strong>';
+                                    echo $match['sets2'];
+                                    if ($p2_won) echo '</strong>';
+                                    ?>
+                                </td>
                                 <?php foreach ($sets_data as $set): ?>
-                                    <td><?php echo $set['legs2']; ?></td>
+                                    <td>
+                                        <?php 
+                                        $legs2_won = (intval($set['legs2']) > intval($set['legs1']));
+                                        if ($legs2_won) echo '<strong>';
+                                        echo $set['legs2'];
+                                        if ($legs2_won) echo '</strong>';
+                                        ?>
+                                    </td>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <td><strong><?php echo $p2_stats['dbl_hit']; ?></strong></td>
+                                <td>
+                                    <?php 
+                                    $p2_won = (intval($match['sets2']) > intval($match['sets1']));
+                                    if ($p2_won) echo '<strong>';
+                                    echo $p2_stats['dbl_hit'];
+                                    if ($p2_won) echo '</strong>';
+                                    ?>
+                                </td>
                             <?php endif; ?>
                             <td><?php echo $p2_3da; ?></td>
                             <td><?php echo $p2_dbl; ?></td>
