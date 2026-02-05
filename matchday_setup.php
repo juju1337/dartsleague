@@ -32,8 +32,21 @@ $setup_complete = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['generate_tournament'])) {
-        generateTournament($_POST);
-        $setup_complete = true;
+        // Server-side validation: check selected players count
+        $selected_count = 0;
+        if (isset($_POST['selected_players']) && is_array($_POST['selected_players'])) {
+            $selected_count = count($_POST['selected_players']);
+        } else {
+            // No player selection means all players
+            $selected_count = count(loadPlayers());
+        }
+        
+        if ($selected_count < 4) {
+            $validation_error = "Cannot create tournament with fewer than 4 players. Selected: $selected_count player(s).";
+        } else {
+            generateTournament($_POST);
+            $setup_complete = true;
+        }
     }
 }
 
@@ -380,7 +393,11 @@ function getPlayerName($player_id) {
     </script>
 </head>
 <body>
-    
+        <?php if (isset($validation_error)): ?>
+        <div class="warning" style="margin: 20px; padding: 15px; background-color: #fff3cd; border: 2px solid #ff0000;">
+            <strong>Error:</strong> <?php echo $validation_error; ?>
+        </div>
+    <?php endif; ?>
     <nav>
         <a href="index.php">Tournament Overview</a>
         <?php if (!empty($matchdays)): ?>
@@ -406,7 +423,9 @@ function getPlayerName($player_id) {
             </div>
         <?php elseif (count($players) < 4): ?>
             <div class="warning">
-                <strong>Warning:</strong> You need at least 4 players for playoffs. Currently registered: <?php echo count($players); ?> players.<br>
+                <strong>Error:</strong> You need at least 4 players to create a tournament.<br>
+                Currently registered: <?php echo count($players); ?> player(s).<br><br>
+                Tournaments require a minimum of 4 players for the playoff system (semi-finals: 1st vs 4th, 2nd vs 3rd).<br><br>
                 <a href="players.php"><button type="button">Add More Players</button></a>
             </div>
         <?php else: ?>
@@ -433,6 +452,7 @@ function getPlayerName($player_id) {
             </div>
         <?php endif; ?>
         
+        <?php if (count($players) >= 4): ?>
         <form method="POST">
             <div class="form-section">
                 <h2>Select Participating Players</h2>
@@ -662,6 +682,7 @@ function getPlayerName($player_id) {
             
             <input type="submit" name="generate_tournament" value="Generate Tournament" onclick="return confirm('This will create all matchdays and matches. Continue?');">
         </form>
+        <?php endif; ?>
         </div>
     <?php endif; ?>
     
