@@ -132,7 +132,13 @@ function loadMatchdays() {
     if (!empty($matchdays_file) && file_exists($matchdays_file) && ($fp = fopen($matchdays_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
-            $matchdays[] = ['id' => $row[0], 'date' => $row[1], 'location' => $row[2]];
+            $matchdays[] = [
+                'id' => $row[0],
+                'date' => $row[1],
+                'location' => $row[2],
+                'standingsmethod' => isset($row[3]) ? $row[3] : 'points',
+                'winpoints' => isset($row[4]) ? intval($row[4]) : 2
+            ];
         }
         fclose($fp);
     }
@@ -184,12 +190,24 @@ function updateMatchday($id, $date, $location) {
     $matchdays = loadMatchdays();
     
     $fp = fopen($matchdays_file, 'w');
-    fputcsv($fp, ['id', 'date', 'location']);
+    fputcsv($fp, ['id', 'date', 'location', 'standingsmethod', 'winpoints']);
     foreach ($matchdays as $md) {
         if ($md['id'] == $id) {
-            fputcsv($fp, [$id, $date, $location]);
+            fputcsv($fp, [
+                $id,
+                $date,
+                $location,
+                isset($md['standingsmethod']) ? $md['standingsmethod'] : 'points',
+                isset($md['winpoints']) ? $md['winpoints'] : 2
+            ]);
         } else {
-            fputcsv($fp, [$md['id'], $md['date'], $md['location']]);
+            fputcsv($fp, [
+                $md['id'],
+                $md['date'],
+                $md['location'],
+                isset($md['standingsmethod']) ? $md['standingsmethod'] : 'points',
+                isset($md['winpoints']) ? $md['winpoints'] : 2
+            ]);
         }
     }
     fclose($fp);
@@ -812,6 +830,216 @@ function saveExtraPoints($matchday_id, $extra_points) {
     fclose($fp);
 }
 
+function getHeadToHeadResult($player1_id, $player2_id, $matches) {
+    // Returns: positive if player1 won more, negative if player2 won more, 0 if tied
+    $p1_wins = 0;
+    $p2_wins = 0;
+    
+    foreach ($matches as $match) {
+        $p1id = $match['player1id'];
+        $p2id = $match['player2id'];
+        $sets1 = intval($match['sets1']);
+        $sets2 = intval($match['sets2']);
+        
+        // Skip unplayed matches
+        if ($sets1 == 0 && $sets2 == 0) continue;
+        
+        // Check if this match is between the two players we're comparing
+        if (($p1id == $player1_id && $p2id == $player2_id) || 
+            ($p1id == $player2_id && $p2id == $player1_id)) {
+            
+            // Determine winner
+            if ($sets1 > $sets2) {
+                if ($p1id == $player1_id) {
+                    $p1_wins++;
+                } else {
+                    $p2_wins++;
+                }
+            } elseif ($sets2 > $sets1) {
+                if ($p2id == $player1_id) {
+                    $p1_wins++;
+                } else {
+                    $p2_wins++;
+                }
+            }
+        }
+    }
+    
+    // Return comparison result
+    return $p1_wins - $p2_wins;
+}
+
+function calculateStandings($matches, $matchday_config) {
+    global $players, $sets_file;
+    
+    $standingsmethod = isset($matchday_config['standingsmethod']) ? $matchday_config['standingsmethod'] : 'points';
+    $winpoints = isset($matchday_config['winpoints']) ? intval($matchday_config['winpoints']) : 2;
+    
+    // Initialize standings
+    $standings = [];
+    foreach ($players as $player) {
+        $standings[$player['id']] = [
+            'id' => $player['id'],
+            'name' => getPlayerName($player['id']),
+            'played' => 0,
+            'won' => 0,
+            'lost' => 0,
+            'legs_for' => 0,
+            'legs_against' => 0,
+            'points' => 0,
+            'total_darts' => 0,
+            'total_legs' => 0,
+            'dbl_attempts' => 0,
+            'dbl_hit' => 0,
+            'bestleg' => PHP_INT_MAX,
+            '180s' => 0,
+            '140s' => 0,
+            '100s' => 0,
+            'highscore' => 0,
+            'highco' => 0
+        ];
+    }
+    
+    // Process matches
+    foreach ($matches as $match) {
+        $p1id = $match['player1id'];
+        $p2id = $match['player2id'];
+        $sets1 = intval($match['sets1']);
+        $sets2 = intval($match['sets2']);
+        
+        // Only count completed matches
+        if ($sets1 > 0 || $sets2 > 0) {
+            $standings[$p1id]['played']++;
+            $standings[$p2id]['played']++;
+            
+            // Determine winner and award points
+            if ($sets1 > $sets2) {
+                $standings[$p1id]['won']++;
+                $standings[$p1id]['points'] += $winpoints;
+                $standings[$p2id]['lost']++;
+            } elseif ($sets2 > $sets1) {
+                $standings[$p2id]['won']++;
+                $standings[$p2id]['points'] += $winpoints;
+                $standings[$p1id]['lost']++;
+            }
+            
+            // Get legs from sets.csv for this match
+            if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
+                $header = fgetcsv($fp);
+                while (($row = fgetcsv($fp)) !== false) {
+                    if ($row[1] == $match['id']) { // matchid column
+                        $legs1 = intval($row[4]);
+                        $legs2 = intval($row[5]);
+                        
+                        $standings[$p1id]['legs_for'] += $legs1;
+                        $standings[$p1id]['legs_against'] += $legs2;
+                        $standings[$p2id]['legs_for'] += $legs2;
+                        $standings[$p2id]['legs_against'] += $legs1;
+
+                        // Weighted 3DA calculation
+                        $da1 = floatval($row[8]);
+                        $da2 = floatval($row[9]);
+                        $total_legs_in_set = $legs1 + $legs2;
+                        
+                        if ($da1 > 0) {
+                            $standings[$p1id]['total_darts'] += $da1 * $total_legs_in_set;
+                            $standings[$p1id]['total_legs'] += $total_legs_in_set;
+                        }
+                        if ($da2 > 0) {
+                            $standings[$p2id]['total_darts'] += $da2 * $total_legs_in_set;
+                            $standings[$p2id]['total_legs'] += $total_legs_in_set;
+                        }
+                        
+                        // Double attempts and hits
+                        $standings[$p1id]['dbl_attempts'] += intval($row[10]);
+                        $standings[$p2id]['dbl_attempts'] += intval($row[11]);
+                        
+                        if (intval($row[10]) > 0) {
+                            $standings[$p1id]['dbl_hit'] += $legs1;
+                        }
+                        if (intval($row[11]) > 0) {
+                            $standings[$p2id]['dbl_hit'] += $legs2;
+                        }
+                        
+                        // Detailed stats
+                        $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
+                        $bestleg2 = isset($row[17]) ? intval($row[17]) : 0;
+                        
+                        if ($bestleg1 > 0 && $bestleg1 < $standings[$p1id]['bestleg']) {
+                            $standings[$p1id]['bestleg'] = $bestleg1;
+                        }
+                        if ($bestleg2 > 0 && $bestleg2 < $standings[$p2id]['bestleg']) {
+                            $standings[$p2id]['bestleg'] = $bestleg2;
+                        }
+                        
+                        $standings[$p1id]['180s'] += isset($row[18]) ? intval($row[18]) : 0;
+                        $standings[$p2id]['180s'] += isset($row[19]) ? intval($row[19]) : 0;
+                        $standings[$p1id]['140s'] += isset($row[20]) ? intval($row[20]) : 0;
+                        $standings[$p2id]['140s'] += isset($row[21]) ? intval($row[21]) : 0;
+                        $standings[$p1id]['100s'] += isset($row[22]) ? intval($row[22]) : 0;
+                        $standings[$p2id]['100s'] += isset($row[23]) ? intval($row[23]) : 0;
+                        
+                        // High scores
+                        $hs1 = intval($row[12]);
+                        $hs2 = intval($row[13]);
+                        $hco1 = intval($row[14]);
+                        $hco2 = intval($row[15]);
+                        
+                        if ($hs1 > $standings[$p1id]['highscore']) $standings[$p1id]['highscore'] = $hs1;
+                        if ($hs2 > $standings[$p2id]['highscore']) $standings[$p2id]['highscore'] = $hs2;
+                        if ($hco1 > $standings[$p1id]['highco']) $standings[$p1id]['highco'] = $hco1;
+                        if ($hco2 > $standings[$p2id]['highco']) $standings[$p2id]['highco'] = $hco2;
+                    }
+                }
+                fclose($fp);
+            }
+        }
+    }
+    
+    // Remove players who didn't play
+    $standings = array_filter($standings, function($s) {
+        return $s['played'] > 0;
+    });
+    
+    // Sort based on method
+    usort($standings, function($a, $b) use ($standingsmethod, $matches) {
+        if ($standingsmethod == 'leg_diff') {
+            // Pure leg difference sorting
+            $diff_a = $a['legs_for'] - $a['legs_against'];
+            $diff_b = $b['legs_for'] - $b['legs_against'];
+            if ($diff_a != $diff_b) return $diff_b - $diff_a;
+            
+            // Tiebreaker 1: Direct comparison (head-to-head)
+            $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
+            if ($h2h != 0) return $h2h;
+            
+            // Tiebreaker 2: Total legs won
+            return $b['legs_for'] - $a['legs_for'];
+        } else {
+            // Points-based sorting (default)
+            if ($b['points'] != $a['points']) {
+                return $b['points'] - $a['points'];
+            }
+            
+            // Tiebreaker 1: Leg difference
+            $diff_a = $a['legs_for'] - $a['legs_against'];
+            $diff_b = $b['legs_for'] - $b['legs_against'];
+            if ($diff_b != $diff_a) {
+                return $diff_b - $diff_a;
+            }
+            
+            // Tiebreaker 2: Direct comparison (head-to-head)
+            $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
+            if ($h2h != 0) return $h2h;
+            
+            // Tiebreaker 3: Total legs won
+            return $b['legs_for'] - $a['legs_for'];
+        }
+    });
+    
+    return $standings;
+}
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -1395,145 +1623,16 @@ function saveExtraPoints($matchday_id, $extra_points) {
         
         <!-- Group Phase Standings -->
         <?php if (!empty($group_matches)): ?>
-            <h3>Group Phase Standings</h3>
+            <h3>Group Phase Standings
+                <?php if ($md['standingsmethod'] == 'leg_diff'): ?>
+                    <small style="font-weight: normal;">(Sorted by Leg Difference)</small>
+                <?php else: ?>
+                    <small style="font-weight: normal;">(<?php echo $md['winpoints']; ?> points per win)</small>
+                <?php endif; ?>
+            </h3>
             <?php
-            // Calculate standings
-            $standings = [];
-            foreach ($players as $player) {
-                $standings[$player['id']] = [
-                    'id' => $player['id'],
-                    'name' => getPlayerName($player['id']),
-                    'played' => 0,
-                    'won' => 0,
-                    'lost' => 0,
-                    'legs_for' => 0,
-                    'legs_against' => 0,
-                    'points' => 0,
-                    'total_darts' => 0,
-                    'total_legs' => 0,
-                    'dbl_attempts' => 0,
-                    'dbl_hit' => 0,
-                    'bestleg' => PHP_INT_MAX,
-                    '180s' => 0,
-                    '140s' => 0,
-                    '100s' => 0,
-                    'highscore' => 0,
-                    'highco' => 0
-                ];
-            }
-            
-            // Process group matches
-            foreach ($group_matches as $match) {
-                $p1id = $match['player1id'];
-                $p2id = $match['player2id'];
-                $sets1 = intval($match['sets1']);
-                $sets2 = intval($match['sets2']);
-                
-                // Only count completed matches
-                if ($sets1 > 0 || $sets2 > 0) {
-                    $standings[$p1id]['played']++;
-                    $standings[$p2id]['played']++;
-                    
-                    // Determine winner
-                    if ($sets1 > $sets2) {
-                        $standings[$p1id]['won']++;
-                        $standings[$p1id]['points'] += 2;
-                        $standings[$p2id]['lost']++;
-                    } elseif ($sets2 > $sets1) {
-                        $standings[$p2id]['won']++;
-                        $standings[$p2id]['points'] += 2;
-                        $standings[$p1id]['lost']++;
-                    }
-                    
-                    // Get legs from sets.csv for this match
-                    $sets_file = 'tables/sets.csv';
-                    if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                        $header = fgetcsv($fp);
-                        while (($row = fgetcsv($fp)) !== false) {
-                            if ($row[1] == $match['id']) { // matchid column
-                                $legs1 = intval($row[4]);
-                                $legs2 = intval($row[5]);
-                                $darts1 = intval($row[6]);
-                                $darts2 = intval($row[7]);
-                                
-                                $standings[$p1id]['legs_for'] += $legs1;
-                                $standings[$p1id]['legs_against'] += $legs2;
-                                $standings[$p2id]['legs_for'] += $legs2;
-                                $standings[$p2id]['legs_against'] += $legs1;
-
-                                // Weighted 3DA calculation
-                                $da1 = floatval($row[8]); // 3da1 from sets.csv
-                                $da2 = floatval($row[9]); // 3da2 from sets.csv
-                                $total_legs_in_set = $legs1 + $legs2;
-                                
-                                if ($da1 > 0) {
-                                    $standings[$p1id]['total_darts'] += $da1 * $total_legs_in_set;
-                                    $standings[$p1id]['total_legs'] += $total_legs_in_set;
-                                }
-                                if ($da2 > 0) {
-                                    $standings[$p2id]['total_darts'] += $da2 * $total_legs_in_set;
-                                    $standings[$p2id]['total_legs'] += $total_legs_in_set;
-                                }
-                                
-                                // Double attempts and hits
-                                $standings[$p1id]['dbl_attempts'] += intval($row[10]);
-                                $standings[$p2id]['dbl_attempts'] += intval($row[11]);
-                                
-                                // Count successful doubles (= legs won) - only when double attempts are recorded
-                                if (intval($row[10]) > 0) {
-                                    $standings[$p1id]['dbl_hit'] += $legs1;
-                                }
-                                if (intval($row[11]) > 0) {
-                                    $standings[$p2id]['dbl_hit'] += $legs2;
-                                }
-                                
-                                // Detailed stats
-                                $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
-                                $bestleg2 = isset($row[17]) ? intval($row[17]) : 0;
-                                
-                                if ($bestleg1 > 0 && $bestleg1 < $standings[$p1id]['bestleg']) {
-                                    $standings[$p1id]['bestleg'] = $bestleg1;
-                                }
-                                if ($bestleg2 > 0 && $bestleg2 < $standings[$p2id]['bestleg']) {
-                                    $standings[$p2id]['bestleg'] = $bestleg2;
-                                }
-                                
-                                $standings[$p1id]['180s'] += isset($row[18]) ? intval($row[18]) : 0;
-                                $standings[$p2id]['180s'] += isset($row[19]) ? intval($row[19]) : 0;
-                                $standings[$p1id]['140s'] += isset($row[20]) ? intval($row[20]) : 0;
-                                $standings[$p2id]['140s'] += isset($row[21]) ? intval($row[21]) : 0;
-                                $standings[$p1id]['100s'] += isset($row[22]) ? intval($row[22]) : 0;
-                                $standings[$p2id]['100s'] += isset($row[23]) ? intval($row[23]) : 0;
-                                
-                                $hs1 = isset($row[12]) ? intval($row[12]) : 0;
-                                $hs2 = isset($row[13]) ? intval($row[13]) : 0;
-                                if ($hs1 > $standings[$p1id]['highscore']) $standings[$p1id]['highscore'] = $hs1;
-                                if ($hs2 > $standings[$p2id]['highscore']) $standings[$p2id]['highscore'] = $hs2;
-                                
-                                $hco1 = isset($row[14]) ? intval($row[14]) : 0;
-                                $hco2 = isset($row[15]) ? intval($row[15]) : 0;
-                                if ($hco1 > $standings[$p1id]['highco']) $standings[$p1id]['highco'] = $hco1;
-                                if ($hco2 > $standings[$p2id]['highco']) $standings[$p2id]['highco'] = $hco2;
-                                
-                            }
-                        }
-                        fclose($fp);
-                    }
-                }
-            }
-            
-            // Sort by points, then legs difference
-            usort($standings, function($a, $b) {
-                if ($b['points'] != $a['points']) {
-                    return $b['points'] - $a['points'];
-                }
-                $diff_a = $a['legs_for'] - $a['legs_against'];
-                $diff_b = $b['legs_for'] - $b['legs_against'];
-                if ($diff_b != $diff_a) {
-                    return $diff_b - $diff_a;
-                }
-                return $b['legs_for'] - $a['legs_for'];
-            });
+            // Calculate standings using configured method
+            $standings = calculateStandings($group_matches, $md);
             ?>
             
             <table>
@@ -1546,7 +1645,11 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     <th>Legs+</th>
                     <th>Legs-</th>
                     <th>Leg Diff</th>
-                    <th>Points</th>
+                    <?php if ($md['standingsmethod'] == 'points'): ?>
+                        <th>Points</th>
+                    <?php else: ?>
+                        <th>Points</th>
+                    <?php endif; ?>
                     <th>Avg</th>
                     <th>Doubles %</th>
                     <th class="detailed-stats-col group-stats" style="display: none;">Highscore</th>
@@ -2290,161 +2393,8 @@ function saveExtraPoints($matchday_id, $extra_points) {
                     <h3>Matchday Overall Standings</h3>
                     <?php
                     // Calculate overall standings including all matches (group + playoffs)
-                    $overall_standings = [];
-                    
-                    // Initialize for all players
-                    foreach ($players as $player) {
-                        $overall_standings[$player['id']] = [
-                            'id' => $player['id'],
-                            'name' => getPlayerName($player['id']),
-                            'played' => 0,
-                            'won' => 0,
-                            'lost' => 0,
-                            'legs_for' => 0,
-                            'legs_against' => 0,
-                            'total_darts' => 0,
-                            'total_legs' => 0,
-                            'dbl_attempts' => 0,
-                            'dbl_hit' => 0,
-                            'bestleg' => PHP_INT_MAX,
-                            '180s' => 0,
-                            '140s' => 0,
-                            '100s' => 0,
-                            'highscore' => 0,
-                            'highco' => 0,
-                            'final_position' => 999
-                        ];
-                    }
-                    
-                    // Process ALL matches (group + playoff)
                     $all_matchday_matches = array_merge($group_matches, $playoff_matches);
-                    
-                    foreach ($all_matchday_matches as $match) {
-                        // Skip unassigned matches
-                        if ($match['player1id'] == 0 || $match['player2id'] == 0) continue;
-                        
-                        $p1id = $match['player1id'];
-                        $p2id = $match['player2id'];
-                        $sets1 = intval($match['sets1']);
-                        $sets2 = intval($match['sets2']);
-                        
-                        // Only count completed matches
-                        if ($sets1 > 0 || $sets2 > 0) {
-                            $overall_standings[$p1id]['played']++;
-                            $overall_standings[$p2id]['played']++;
-                            
-                            // Determine winner
-                            if ($sets1 > $sets2) {
-                                $overall_standings[$p1id]['won']++;
-                                $overall_standings[$p2id]['lost']++;
-                            } elseif ($sets2 > $sets1) {
-                                $overall_standings[$p2id]['won']++;
-                                $overall_standings[$p1id]['lost']++;
-                            }
-                            
-                            // Get detailed stats from sets.csv
-                            if (file_exists($sets_file) && ($fp = fopen($sets_file, 'r')) !== false) {
-                                $header = fgetcsv($fp);
-                                while (($row = fgetcsv($fp)) !== false) {
-                                    if ($row[1] == $match['id']) { // matchid
-                                        $legs1 = intval($row[4]);
-                                        $legs2 = intval($row[5]);
-                                        $total_legs_in_set = $legs1 + $legs2;
-                                        
-                                        $overall_standings[$p1id]['legs_for'] += $legs1;
-                                        $overall_standings[$p1id]['legs_against'] += $legs2;
-                                        $overall_standings[$p2id]['legs_for'] += $legs2;
-                                        $overall_standings[$p2id]['legs_against'] += $legs1;
-                                        
-                                        // Weighted 3DA calculation
-                                        $da1 = floatval($row[8]);
-                                        $da2 = floatval($row[9]);
-                                        
-                                        if ($da1 > 0) {
-                                            $overall_standings[$p1id]['total_darts'] += $da1 * $total_legs_in_set;
-                                            $overall_standings[$p1id]['total_legs'] += $total_legs_in_set;
-                                        }
-                                        if ($da2 > 0) {
-                                            $overall_standings[$p2id]['total_darts'] += $da2 * $total_legs_in_set;
-                                            $overall_standings[$p2id]['total_legs'] += $total_legs_in_set;
-                                        }
-                                        
-                                        // Double attempts and hits
-                                        $overall_standings[$p1id]['dbl_attempts'] += intval($row[10]);
-                                        $overall_standings[$p2id]['dbl_attempts'] += intval($row[11]);
-                                        
-                                        // Count successful doubles (= legs won) - only when double attempts are recorded
-                                        if (intval($row[10]) > 0) {
-                                            $overall_standings[$p1id]['dbl_hit'] += $legs1;
-                                        }
-                                        if (intval($row[11]) > 0) {
-                                            $overall_standings[$p2id]['dbl_hit'] += $legs2;
-                                        }
-                                        
-                                        // High scores and checkouts
-                                        $hs1 = intval($row[12]);
-                                        $hs2 = intval($row[13]);
-                                        $hco1 = intval($row[14]);
-                                        $hco2 = intval($row[15]);
-                                        
-                                        if ($hs1 > $overall_standings[$p1id]['highscore']) {
-                                            $overall_standings[$p1id]['highscore'] = $hs1;
-                                        }
-                                        if ($hs2 > $overall_standings[$p2id]['highscore']) {
-                                            $overall_standings[$p2id]['highscore'] = $hs2;
-                                        }
-                                        if ($hco1 > $overall_standings[$p1id]['highco']) {
-                                            $overall_standings[$p1id]['highco'] = $hco1;
-                                        }
-                                        if ($hco2 > $overall_standings[$p2id]['highco']) {
-                                            $overall_standings[$p2id]['highco'] = $hco2;
-                                        }
-                                        
-                                        // Detailed stats
-                                        $bestleg1 = isset($row[16]) ? intval($row[16]) : 0;
-                                        $bestleg2 = isset($row[17]) ? intval($row[17]) : 0;
-
-                                        if ($bestleg1 > 0 && $bestleg1 < $overall_standings[$p1id]['bestleg']) {
-                                            $overall_standings[$p1id]['bestleg'] = $bestleg1;
-                                        }
-                                        if ($bestleg2 > 0 && $bestleg2 < $overall_standings[$p2id]['bestleg']) {
-                                            $overall_standings[$p2id]['bestleg'] = $bestleg2;
-                                        }
-
-                                        $overall_standings[$p1id]['180s'] += isset($row[18]) ? intval($row[18]) : 0;
-                                        $overall_standings[$p2id]['180s'] += isset($row[19]) ? intval($row[19]) : 0;
-                                        $overall_standings[$p1id]['140s'] += isset($row[20]) ? intval($row[20]) : 0;
-                                        $overall_standings[$p2id]['140s'] += isset($row[21]) ? intval($row[21]) : 0;
-                                        $overall_standings[$p1id]['100s'] += isset($row[22]) ? intval($row[22]) : 0;
-                                        $overall_standings[$p2id]['100s'] += isset($row[23]) ? intval($row[23]) : 0;
-                                        
-                                    }
-                                }
-                                fclose($fp);
-                            }
-                        }
-                    }
-                    
-                    // Determine final positions based on playoff results
-                    foreach ($playoff_matches as $pm) {
-                        if ($pm['sets1'] > 0 || $pm['sets2'] > 0) {
-                            $winner_id = ($pm['sets1'] > $pm['sets2']) ? $pm['player1id'] : $pm['player2id'];
-                            $loser_id = ($pm['sets1'] > $pm['sets2']) ? $pm['player2id'] : $pm['player1id'];
-                            
-                            if ($pm['phase'] == 'final') {
-                                $overall_standings[$winner_id]['final_position'] = 1;
-                                $overall_standings[$loser_id]['final_position'] = 2;
-                            } elseif ($pm['phase'] == 'third') {
-                                $overall_standings[$winner_id]['final_position'] = 3;
-                                $overall_standings[$loser_id]['final_position'] = 4;
-                            }
-                        }
-                    }
-                    
-                    // Sort by final position
-                    usort($overall_standings, function($a, $b) {
-                        return $a['final_position'] - $b['final_position'];
-                    });
+                    $overall_standings = calculateStandings($all_matchday_matches, $md);
                     ?>
                     
                     <table>

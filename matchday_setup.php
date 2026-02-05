@@ -74,7 +74,13 @@ function loadMatchdays() {
     if (file_exists($matchdays_file) && ($fp = fopen($matchdays_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
-            $matchdays[] = ['id' => $row[0], 'date' => $row[1], 'location' => $row[2]];
+            $matchdays[] = [
+                'id' => $row[0],
+                'date' => $row[1],
+                'location' => $row[2],
+                'standingsmethod' => isset($row[3]) ? $row[3] : 'points',
+                'winpoints' => isset($row[4]) ? intval($row[4]) : 2
+            ];
         }
         fclose($fp);
     }
@@ -154,11 +160,23 @@ function generateTournament($config) {
     
     // Create matchdays
     $fp = fopen($matchdays_file, 'w');
-    fputcsv($fp, ['id', 'date', 'location']);
+    fputcsv($fp, ['id', 'date', 'location', 'standingsmethod', 'winpoints']);
     $total_matchdays = $has_special ? $num_regular_matchdays + 1 : $num_regular_matchdays;
-    for ($i = 1; $i <= $total_matchdays; $i++) {
-        fputcsv($fp, [$i, '', '']);
+    
+    // Regular matchdays
+    for ($i = 1; $i <= $num_regular_matchdays; $i++) {
+        $standingsmethod = isset($config['regular_standingsmethod']) ? $config['regular_standingsmethod'] : 'points';
+        $winpoints = isset($config['regular_winpoints']) ? intval($config['regular_winpoints']) : 2;
+        fputcsv($fp, [$i, '', '', $standingsmethod, $winpoints]);
     }
+    
+    // Special matchday (if exists)
+    if ($has_special) {
+        $standingsmethod = isset($config['special_standingsmethod']) ? $config['special_standingsmethod'] : 'points';
+        $winpoints = isset($config['special_winpoints']) ? intval($config['special_winpoints']) : 2;
+        fputcsv($fp, [$num_regular_matchdays + 1, '', '', $standingsmethod, $winpoints]);
+    }
+    
     fclose($fp);
     
     // Create matches
@@ -485,6 +503,30 @@ function getPlayerName($player_id) {
                     
                     <label>Each set - First to X legs:</label>
                     <input type="number" name="regular_group_legs" min="1" value="3" required>
+                    
+                    <h3>Group Standings Configuration</h3>
+                    <table>
+                        <tr>
+                            <th>Setting</th>
+                            <th>Value</th>
+                        </tr>
+                        <tr>
+                            <td>Standings Method</td>
+                            <td>
+                                <select name="regular_standingsmethod" id="regular_standingsmethod" onchange="toggleWinPoints('regular')">
+                                    <option value="points" selected>Points-based (Win/Loss)</option>
+                                    <option value="leg_diff">Leg Difference Only</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr id="regular_winpoints_row">
+                            <td>Points for Win</td>
+                            <td>
+                                <input type="number" name="regular_winpoints" value="2" min="0" max="10" required style="width: 60px;">
+                                <small>(Traditional: 2 points, Modern: 3 points)</small>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
                 
                 <div class="subsection">
@@ -547,6 +589,30 @@ function getPlayerName($player_id) {
                         
                         <label>Each set - First to X legs:</label>
                         <input type="number" name="special_group_legs" min="1" value="5">
+                        
+                        <h3>Group Standings Configuration</h3>
+                        <table>
+                            <tr>
+                                <th>Setting</th>
+                                <th>Value</th>
+                            </tr>
+                            <tr>
+                                <td>Standings Method</td>
+                                <td>
+                                    <select name="special_standingsmethod" id="special_standingsmethod" onchange="toggleWinPoints('special')">
+                                        <option value="points" selected>Points-based (Win/Loss)</option>
+                                        <option value="leg_diff">Leg Difference Only</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr id="special_winpoints_row">
+                                <td>Points for Win</td>
+                                <td>
+                                    <input type="number" name="special_winpoints" value="2" min="0" max="10" required style="width: 60px;">
+                                    <small>(Traditional: 2 points, Modern: 3 points)</small>
+                                </td>
+                            </tr>
+                        </table>
                     </div>
                     
                     <div class="subsection">
@@ -698,6 +764,28 @@ function getPlayerName($player_id) {
         <?php else: ?>
             | <a href="index.php#login">Login</a>
         <?php endif; ?>
+
+<script>
+function toggleWinPoints(type) {
+    const method = document.getElementById(type + '_standingsmethod').value;
+    const row = document.getElementById(type + '_winpoints_row');
+    
+    if (method === 'points') {
+        row.style.display = '';
+    } else {
+        row.style.display = 'none';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleWinPoints('regular');
+    if (document.getElementById('special_standingsmethod')) {
+        toggleWinPoints('special');
+    }
+});
+</script>
+
 </body>
 </html>
 

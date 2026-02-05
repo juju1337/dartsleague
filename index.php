@@ -57,7 +57,13 @@ function loadMatchdays() {
     if (file_exists($matchdays_file) && ($fp = fopen($matchdays_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
-            $matchdays[] = ['id' => $row[0], 'date' => $row[1], 'location' => $row[2]];
+            $matchdays[$row[0]] = [
+                'id' => $row[0],
+                'date' => $row[1],
+                'location' => $row[2],
+                'standingsmethod' => isset($row[3]) ? $row[3] : 'points',
+                'winpoints' => isset($row[4]) ? intval($row[4]) : 2
+            ];
         }
         fclose($fp);
     }
