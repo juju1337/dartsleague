@@ -674,7 +674,7 @@ function loadMatches() {
             <?php endif; ?>
             
             <?php if ($can_add): ?>
-                <div class="section" style="margin-bottom: 30px;">
+                <div id="add_matchday_section" class="section" style="margin-bottom: 30px;">
                     <h2>Add New Matchday</h2>
                     
                     <?php
@@ -745,7 +745,8 @@ function loadMatches() {
                     Creating a new tournament will overwrite all existing matchdays and matches.<br><br>
                     <strong>Options:</strong><br>
                     <a href="matchdays.php"><button type="button">Edit Existing Tournament</button></a>
-                    <button type="button" onclick="document.getElementById('setup_form').style.display='block'; this.parentElement.style.display='none';">Create New Tournament (Overwrite)</button>
+                    <button type="button" onclick="showSetupForm()">Create New Tournament (Overwrite)</button>
+
                 </div>
                 <div id="setup_form" style="display: none;">
             <?php else: ?>
@@ -1052,26 +1053,41 @@ function loadMatches() {
             | <a href="index.php#login">Login</a>
         <?php endif; ?>
 
-<script>
-function toggleWinPoints(type) {
-    const method = document.getElementById(type + '_standingsmethod').value;
-    const row = document.getElementById(type + '_winpoints_row');
-    
-    if (method === 'points') {
-        row.style.display = '';
-    } else {
-        row.style.display = 'none';
-    }
-}
+    <script>
+        function toggleWinPoints(type) {
+            const method = document.getElementById(type + '_standingsmethod').value;
+            const row = document.getElementById(type + '_winpoints_row');
+            
+            if (method === 'points') {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    toggleWinPoints('regular');
-    if (document.getElementById('special_standingsmethod')) {
-        toggleWinPoints('special');
-    }
-});
-</script>
+        function showSetupForm() {
+            // Hide the warning message
+            var warningDiv = event.target.parentElement;
+            warningDiv.style.display = 'none';
+            
+            // Hide the add matchday section if it exists
+            var addMatchdaySection = document.getElementById('add_matchday_section');
+            if (addMatchdaySection) {
+                addMatchdaySection.style.display = 'none';
+            }
+            
+            // Show the setup form
+            document.getElementById('setup_form').style.display = 'block';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleWinPoints('regular');
+            if (document.getElementById('special_standingsmethod')) {
+                toggleWinPoints('special');
+            }
+        });
+    </script>
 
 </body>
 </html>
