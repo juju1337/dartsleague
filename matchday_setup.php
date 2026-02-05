@@ -27,6 +27,11 @@ if (!file_exists($matches_file)) {
     fclose($fp);
 }
 
+// Load data
+$players = loadPlayers();
+$matchdays = loadMatchdays();
+$all_matches = loadMatches();
+
 // Handle form submission
 $setup_complete = false;
 
@@ -48,11 +53,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $setup_complete = true;
         }
     }
+    
+    if (isset($_POST['add_matchday'])) {
+        $result = addSingleMatchday($matchdays, $all_matches, $matchdays_file, $matches_file);
+        if ($result['success']) {
+            $add_success = $result['message'];
+            // Reload data
+            $matchdays = loadMatchdays();
+            $all_matches = loadMatches();
+        } else {
+            $add_error = $result['message'];
+        }
+    }
 }
-
-// Load data
-$players = loadPlayers();
-$matchdays = loadMatchdays();
 
 // Functions
 function loadPlayers() {
@@ -195,7 +208,7 @@ function generateTournament($config) {
             $config['regular_group_rounds'],
             $config['regular_group_sets'],
             $config['regular_group_legs'],
-            $config['regular_has_playoffs'],
+            isset($config['regular_has_playoffs']) && $config['regular_has_playoffs'] == '1',
             $config['regular_playoff_sets'],
             $config['regular_playoff_legs'],
             isset($config['regular_has_third']) && $config['regular_has_third'] == '1',
@@ -216,7 +229,7 @@ function generateTournament($config) {
             $config['special_group_rounds'],
             $config['special_group_sets'],
             $config['special_group_legs'],
-            $config['special_has_playoffs'],
+            isset($config['special_has_playoffs']) && $config['special_has_playoffs'] == '1',
             $config['special_playoff_sets'],
             $config['special_playoff_legs'],
             isset($config['special_has_third']) && $config['special_has_third'] == '1',
@@ -384,6 +397,200 @@ function getPlayerName($player_id) {
     return 'Unknown';
 }
 
+function canAddMatchday($matchdays, $all_matches) {
+    if (empty($matchdays)) return false;
+    
+    // Check if special matchday exists
+    // Assumption: if matchday count doesn't match expected pattern, there's a special one
+    // Better approach: check if all matchdays have identical format
+    
+    $formats = [];
+    foreach ($matchdays as $md) {
+        $md_id = $md['id'];
+        $md_matches = array_filter($all_matches, function($m) use ($md_id) {
+            return $m['matchdayid'] == $md_id;
+        });
+        
+        $group_matches = array_filter($md_matches, function($m) { return $m['phase'] == 'group'; });
+        $playoff_matches = array_filter($md_matches, function($m) { return $m['phase'] != 'group'; });
+        
+        if (empty($group_matches)) continue;
+        
+        $first_group = array_values($group_matches)[0];
+        
+        $format_key = $first_group['firsttosets'] . '_' . $first_group['firsttolegs'] . '_' . count($group_matches);
+        
+        if (!empty($playoff_matches)) {
+            $first_playoff = array_values($playoff_matches)[0];
+            $format_key .= '_p_' . $first_playoff['firsttosets'] . '_' . $first_playoff['firsttolegs'] . '_' . count($playoff_matches);
+        }
+        
+        $formats[$format_key] = isset($formats[$format_key]) ? $formats[$format_key] + 1 : 1;
+    }
+    
+    // If more than one format exists, don't allow adding (indicates special matchday)
+    if (count($formats) > 1) {
+        return false;
+    }
+    
+    return true;
+}
+
+function getMatchdayFormat($matchday_id, $all_matches) {
+    // Extract complete format from an existing matchday
+    $md_matches = array_filter($all_matches, function($m) use ($matchday_id) {
+        return $m['matchdayid'] == $matchday_id;
+    });
+    
+    $group_matches = array_filter($md_matches, function($m) { return $m['phase'] == 'group'; });
+    $playoff_matches = array_filter($md_matches, function($m) { return $m['phase'] != 'group'; });
+    
+    if (empty($group_matches)) return null;
+    
+    $first_group = array_values($group_matches)[0];
+    
+    // Extract players from group matches
+    $players = [];
+    foreach ($group_matches as $match) {
+        if (!in_array($match['player1id'], $players)) {
+            $players[] = $match['player1id'];
+        }
+        if (!in_array($match['player2id'], $players)) {
+            $players[] = $match['player2id'];
+        }
+    }
+    
+    // Calculate number of rounds
+    $num_players = count($players);
+    $matches_per_round = ($num_players * ($num_players - 1)) / 2;
+    $group_rounds = $matches_per_round > 0 ? count($group_matches) / $matches_per_round : 1;
+    
+    $format = [
+        'players' => $players,
+        'group_rounds' => $group_rounds,
+        'group_sets' => $first_group['firsttosets'],
+        'group_legs' => $first_group['firsttolegs'],
+        'has_playoffs' => !empty($playoff_matches) ? '1' : '0',
+        'playoff_sets' => 0,
+        'playoff_legs' => 0,
+        'has_third' => false,
+        'different_final' => false,
+        'final_sets' => 0,
+        'final_legs' => 0
+    ];
+    
+    if (!empty($playoff_matches)) {
+        $first_playoff = array_values($playoff_matches)[0];
+        $format['playoff_sets'] = $first_playoff['firsttosets'];
+        $format['playoff_legs'] = $first_playoff['firsttolegs'];
+        
+        // Check for third place match
+        foreach ($playoff_matches as $pm) {
+            if ($pm['phase'] == 'third') {
+                $format['has_third'] = true;
+            }
+            if ($pm['phase'] == 'final') {
+                // Check if final has different format
+                if ($pm['firsttosets'] != $format['playoff_sets'] || $pm['firsttolegs'] != $format['playoff_legs']) {
+                    $format['different_final'] = true;
+                    $format['final_sets'] = $pm['firsttosets'];
+                    $format['final_legs'] = $pm['firsttolegs'];
+                }
+            }
+        }
+    }
+    
+    return $format;
+}
+
+function addSingleMatchday($matchdays, $all_matches, $matchdays_file, $matches_file) {
+    // Get format from first matchday
+    $format = getMatchdayFormat(1, $all_matches);
+    
+    if (!$format) {
+        return ['success' => false, 'message' => 'Could not determine matchday format.'];
+    }
+    
+    // Get next matchday ID
+    $next_matchday_id = count($matchdays) + 1;
+    
+    // Get standings configuration from first matchday
+    $first_md = $matchdays[0];
+    $standingsmethod = isset($first_md['standingsmethod']) ? $first_md['standingsmethod'] : 'points';
+    $winpoints = isset($first_md['winpoints']) ? $first_md['winpoints'] : 2;
+    
+    // Find max match ID
+    $max_match_id = 0;
+    foreach ($all_matches as $m) {
+        if ($m['id'] > $max_match_id) {
+            $max_match_id = $m['id'];
+        }
+    }
+    $next_match_id = $max_match_id + 1;
+    
+    // Append new matchday to matchdays.csv
+    $fp = fopen($matchdays_file, 'a');
+    fputcsv($fp, [$next_matchday_id, '', '', $standingsmethod, $winpoints]);
+    fclose($fp);
+    
+    // Append new matches to matches.csv
+    $fp = fopen($matches_file, 'a');
+    
+    // Get full player objects for generateMatchdayMatches
+    $all_players = loadPlayers();
+    $selected_players = [];
+    foreach ($all_players as $player) {
+        if (in_array($player['id'], $format['players'])) {
+            $selected_players[] = $player;
+        }
+    }
+    
+    // Generate matches using existing function
+    generateMatchdayMatches(
+        $fp,
+        $next_match_id,
+        $next_matchday_id,
+        $selected_players,
+        $format['group_rounds'],
+        $format['group_sets'],
+        $format['group_legs'],
+        $format['has_playoffs'],
+        $format['playoff_sets'],
+        $format['playoff_legs'],
+        $format['has_third'],
+        $format['different_final'],
+        $format['final_sets'],
+        $format['final_legs']
+    );
+    
+    fclose($fp);
+    
+    return ['success' => true, 'message' => "Matchday $next_matchday_id added successfully."];
+}
+
+function loadMatches() {
+    $matches_file = 'tables/matches.csv';
+    $matches = [];
+    if (file_exists($matches_file) && ($fp = fopen($matches_file, 'r')) !== false) {
+        $header = fgetcsv($fp);
+        while (($row = fgetcsv($fp)) !== false) {
+            $matches[] = [
+                'id' => $row[0],
+                'matchdayid' => $row[1],
+                'phase' => $row[2],
+                'firsttosets' => $row[3],
+                'firsttolegs' => $row[4],
+                'player1id' => $row[5],
+                'player2id' => $row[6],
+                'sets1' => $row[7],
+                'sets2' => $row[8]
+            ];
+        }
+        fclose($fp);
+    }
+    return $matches;
+}
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -411,7 +618,7 @@ function getPlayerName($player_id) {
     </script>
 </head>
 <body>
-        <?php if (isset($validation_error)): ?>
+    <?php if (isset($validation_error)): ?>
         <div class="warning" style="margin: 20px; padding: 15px; background-color: #fff3cd; border: 2px solid #ff0000;">
             <strong>Error:</strong> <?php echo $validation_error; ?>
         </div>
@@ -447,10 +654,90 @@ function getPlayerName($player_id) {
                 <a href="players.php"><button type="button">Add More Players</button></a>
             </div>
         <?php else: ?>
-            <?php 
+                        <?php 
                 // Check if tournament already exists
                 $tournament_exists = !empty($matchdays);
+                $can_add = $tournament_exists && canAddMatchday($matchdays, $all_matches);
             ?>
+            
+            <?php if (isset($add_success)): ?>
+                <div class="info" style="margin: 20px; padding: 15px; background-color: #d4edda; border: 2px solid #28a745;">
+                    <strong>Success:</strong> <?php echo $add_success; ?><br><br>
+                    <a href="matchdays.php"><button type="button">View Matchdays</button></a>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($add_error)): ?>
+                <div class="warning" style="margin: 20px; padding: 15px;">
+                    <strong>Error:</strong> <?php echo $add_error; ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($can_add): ?>
+                <div class="section" style="margin-bottom: 30px;">
+                    <h2>Add New Matchday</h2>
+                    
+                    <?php
+                    // Get format info to display
+                    $format = getMatchdayFormat(1, $all_matches);
+                    $num_players = count($format['players']);
+                    $player_names = [];
+                    foreach ($format['players'] as $pid) {
+                        foreach ($players as $p) {
+                            if ($p['id'] == $pid) {
+                                $player_names[] = $p['name'];
+                                break;
+                            }
+                        }
+                    }
+                    ?>
+                    
+                    <div class="info">
+                        <p><strong>Add matchday <?php echo count($matchdays) + 1; ?> with the same format as existing matchdays:</strong></p>
+                        <ul>
+                            <li><strong>Players:</strong> <?php echo implode(', ', $player_names); ?> (<?php echo $num_players; ?> players)</li>
+                            <li><strong>Group Phase:</strong> <?php echo $format['group_rounds']; ?> round(s), Best of <?php echo $format['group_sets']; ?> sets, First to <?php echo $format['group_legs']; ?> legs</li>
+                            <?php if ($format['has_playoffs'] == '1'): ?>
+                                <li><strong>Playoffs:</strong> Semi-Finals (Best of <?php echo $format['playoff_sets']; ?> sets, First to <?php echo $format['playoff_legs']; ?> legs)</li>
+                                <?php if ($format['has_third']): ?>
+                                    <li><strong>3rd Place Match:</strong> Yes</li>
+                                <?php endif; ?>
+                                <?php if ($format['different_final']): ?>
+                                    <li><strong>Final:</strong> Best of <?php echo $format['final_sets']; ?> sets, First to <?php echo $format['final_legs']; ?> legs</li>
+                                <?php else: ?>
+                                    <li><strong>Final:</strong> Same format as Semi-Finals</li>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <li><strong>Playoffs:</strong> No playoffs</li>
+                            <?php endif; ?>
+                            <li><strong>Standings Method:</strong> 
+                                <?php 
+                                $first_md = $matchdays[0];
+                                if (isset($first_md['standingsmethod']) && $first_md['standingsmethod'] == 'leg_diff') {
+                                    echo 'Leg Difference';
+                                } else {
+                                    echo 'Points-based (' . (isset($first_md['winpoints']) ? $first_md['winpoints'] : 2) . ' points per win)';
+                                }
+                                ?>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <form method="POST" onsubmit="return confirm('Add matchday <?php echo count($matchdays) + 1; ?> with the format shown above?');">
+                        <input type="submit" name="add_matchday" value="Add Matchday <?php echo count($matchdays) + 1; ?>" style="background-color: #28a745; color: white; padding: 10px 20px; font-size: 16px;">
+                    </form>
+                </div>
+                
+                <hr style="margin: 30px 0;">
+            <?php endif; ?>
+            
+            <?php if ($tournament_exists && !$can_add): ?>
+                <div class="warning" style="margin-bottom: 30px;">
+                    <strong>Cannot add matchdays:</strong> Your tournament has matchdays with different formats (possibly a special matchday).<br>
+                    Adding matchdays is only allowed when all existing matchdays have identical format.<br><br>
+                    <strong>Option:</strong> You can rebuild the entire tournament below.
+                </div>
+            <?php endif; ?>
             
             <?php if ($tournament_exists): ?>
                 <div class="warning">
