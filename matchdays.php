@@ -1689,9 +1689,9 @@ function calculateStandings($matches, $matchday_config) {
             </table>
         <?php endif; ?>
         
-        <!-- Playoff Matches
+        <!-- Playoff Matches -->
         <?php if (!empty($playoff_matches)): ?>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <!--<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin: 0;">Playoff Matches</h3>
                 <button type="button" id="togglePlayoffStats" onclick="togglePlayoffDetailedStats()" style="padding: 8px 15px;">Show All Stats</button>
             </div>
@@ -2548,6 +2548,7 @@ function calculateStandings($matches, $matchday_config) {
         <?php endif; ?>
 </body>
 </html>
+
 
 
 
