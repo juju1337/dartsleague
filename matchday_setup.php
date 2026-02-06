@@ -46,13 +46,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $selected_count = count(loadPlayers());
         }
         
-        // Check playoff setting to determine minimum participants
-        $has_playoffs = isset($_POST['regular_has_playoffs']) && $_POST['regular_has_playoffs'] == '1';
-        $min_participants = $has_playoffs ? 4 : 2;
+        // Check playoff settings for both regular and special matchdays
+        $regular_has_playoffs = isset($_POST['regular_has_playoffs']) && $_POST['regular_has_playoffs'] == '1';
+        $has_special = isset($_POST['has_special']) && $_POST['has_special'] == '1';
+        $special_has_playoffs = $has_special && isset($_POST['special_has_playoffs']) && $_POST['special_has_playoffs'] == '1';
+        
+        // If ANY matchday has playoffs, need at least 4 players
+        $any_playoffs = $regular_has_playoffs || $special_has_playoffs;
+        $min_participants = $any_playoffs ? 4 : 2;
         
         if ($selected_count < $min_participants) {
-            if ($has_playoffs) {
-                $validation_error = "Cannot create tournament with playoffs and fewer than 4 players. Selected: $selected_count player(s). Either select at least 4 players or disable playoffs.";
+            if ($any_playoffs) {
+                $playoff_source = [];
+                if ($regular_has_playoffs) $playoff_source[] = "regular matchdays";
+                if ($special_has_playoffs) $playoff_source[] = "special matchday";
+                $validation_error = "Cannot create tournament with playoffs (" . implode(' and ', $playoff_source) . ") and fewer than 4 players. Selected: $selected_count player(s). Either select at least 4 players or disable playoffs.";
             } else {
                 $validation_error = "Cannot create tournament with fewer than 2 players. Selected: $selected_count player(s).";
             }
@@ -1118,6 +1126,7 @@ function loadMatches() {
 
 </body>
 </html>
+
 
 
 
