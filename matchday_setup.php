@@ -32,41 +32,89 @@ $players = loadPlayers();
 $matchdays = loadMatchdays();
 $all_matches = loadMatches();
 
+// Separate individuals and teams
+$individuals = array_filter($players, function($p) { return $p['isteam'] == 0; });
+$teams = array_filter($players, function($p) { return $p['isteam'] == 1; });
+
 // Handle form submission
 $setup_complete = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['generate_tournament'])) {
-        // Server-side validation: check selected players count
-        $selected_count = 0;
-        if (isset($_POST['selected_players']) && is_array($_POST['selected_players'])) {
-            $selected_count = count($_POST['selected_players']);
-        } else {
-            // No player selection means all players
-            $selected_count = count(loadPlayers());
-        }
+        // Determine tournament type
+        $tournament_type = isset($_POST['tournament_type']) ? $_POST['tournament_type'] : 'singles';
         
-        // Check playoff settings for both regular and special matchdays
-        $regular_has_playoffs = isset($_POST['regular_has_playoffs']) && $_POST['regular_has_playoffs'] == '1';
-        $has_special = isset($_POST['has_special']) && $_POST['has_special'] == '1';
-        $special_has_playoffs = $has_special && isset($_POST['special_has_playoffs']) && $_POST['special_has_playoffs'] == '1';
-        
-        // If ANY matchday has playoffs, need at least 4 players
-        $any_playoffs = $regular_has_playoffs || $special_has_playoffs;
-        $min_participants = $any_playoffs ? 4 : 2;
-        
-        if ($selected_count < $min_participants) {
-            if ($any_playoffs) {
-                $playoff_source = [];
-                if ($regular_has_playoffs) $playoff_source[] = "regular matchdays";
-                if ($special_has_playoffs) $playoff_source[] = "special matchday";
-                $validation_error = "Cannot create tournament with playoffs (" . implode(' and ', $playoff_source) . ") and fewer than 4 players. Selected: $selected_count player(s). Either select at least 4 players or disable playoffs.";
+        // Get selected participants based on tournament type
+        $selected_entities = [];
+        if ($tournament_type == 'singles') {
+            // Singles: use selected individual players
+            if (isset($_POST['selected_players']) && is_array($_POST['selected_players'])) {
+                foreach ($_POST['selected_players'] as $id) {
+                    foreach ($individuals as $p) {
+                        if ($p['id'] == $id) {
+                            $selected_entities[] = $p;
+                            break;
+                        }
+                    }
+                }
             } else {
-                $validation_error = "Cannot create tournament with fewer than 2 players. Selected: $selected_count player(s).";
+                $selected_entities = array_values($individuals);
             }
         } else {
-            generateTournament($_POST);
-            $setup_complete = true;
+            // Doubles: use selected teams
+            if (isset($_POST['selected_teams']) && is_array($_POST['selected_teams'])) {
+                foreach ($_POST['selected_teams'] as $id) {
+                    foreach ($teams as $t) {
+                        if ($t['id'] == $id) {
+                            $selected_entities[] = $t;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                $selected_entities = array_values($teams);
+            }
+            
+            // NOTE: We allow overlapping teams in the tournament
+            // Match generation will ensure overlapping teams don't play each other
+        }
+        
+        if (!isset($validation_error)) {
+            $selected_count = count($selected_entities);
+            
+            // For doubles, playoffs are not allowed
+            if ($tournament_type == 'doubles') {
+                $_POST['regular_has_playoffs'] = '0';
+                $_POST['special_has_playoffs'] = '0';
+            }
+            
+            // Check playoff settings
+            $regular_has_playoffs = isset($_POST['regular_has_playoffs']) && $_POST['regular_has_playoffs'] == '1';
+            $has_special = isset($_POST['has_special']) && $_POST['has_special'] == '1';
+            $special_has_playoffs = $has_special && isset($_POST['special_has_playoffs']) && $_POST['special_has_playoffs'] == '1';
+            
+            // If ANY matchday has playoffs, need at least 4 participants
+            $any_playoffs = $regular_has_playoffs || $special_has_playoffs;
+            $min_participants = $any_playoffs ? 4 : 2;
+            
+            if ($selected_count < $min_participants) {
+                if ($any_playoffs) {
+                    $playoff_source = [];
+                    if ($regular_has_playoffs) $playoff_source[] = "regular matchdays";
+                    if ($special_has_playoffs) $playoff_source[] = "special matchday";
+                    $entity_word = $tournament_type == 'singles' ? 'player(s)' : 'team(s)';
+                    $validation_error = "Cannot create tournament with playoffs (" . implode(' and ', $playoff_source) . ") and fewer than 4 $entity_word. Selected: $selected_count $entity_word. Either select at least 4 $entity_word or disable playoffs.";
+                } else {
+                    $entity_word = $tournament_type == 'singles' ? 'player(s)' : 'team(s)';
+                    $validation_error = "Cannot create tournament with fewer than 2 $entity_word. Selected: $selected_count $entity_word.";
+                }
+            } else {
+                // Store selected entities in a format generateTournament expects
+                $entity_ids = array_map(function($e) { return $e['id']; }, $selected_entities);
+                $_POST['selected_players'] = $entity_ids; // Use existing field name
+                generateTournament($_POST);
+                $setup_complete = true;
+            }
         }
     }
     
@@ -90,11 +138,45 @@ function loadPlayers() {
     if (file_exists($players_file) && ($fp = fopen($players_file, 'r')) !== false) {
         $header = fgetcsv($fp);
         while (($row = fgetcsv($fp)) !== false) {
-            $players[] = ['id' => $row[0], 'name' => $row[1], 'nickname' => $row[2]];
+            $players[] = [
+                'id' => $row[0],
+                'name' => $row[1],
+                'nickname' => isset($row[2]) ? $row[2] : '',
+                'isteam' => isset($row[3]) ? intval($row[3]) : 0,
+                'player1id' => isset($row[4]) ? $row[4] : '',
+                'player2id' => isset($row[5]) ? $row[5] : ''
+            ];
         }
         fclose($fp);
     }
     return $players;
+}
+
+function getPlayerById($id, $all_players) {
+    foreach ($all_players as $p) {
+        if ($p['id'] == $id) {
+            return $p;
+        }
+    }
+    return null;
+}
+
+function teamsSharePlayers($team1, $team2) {
+    // Check if two teams share any players
+    if ($team1['isteam'] != 1 || $team2['isteam'] != 1) {
+        return false; // Not both teams
+    }
+    
+    $team1_players = [$team1['player1id'], $team1['player2id']];
+    $team2_players = [$team2['player1id'], $team2['player2id']];
+    
+    foreach ($team1_players as $p) {
+        if (in_array($p, $team2_players)) {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 function loadMatchdays() {
@@ -266,6 +348,14 @@ function generateMatchdayMatches($fp, $match_id, $day, $players, $group_rounds, 
     for ($round = 1; $round <= intval($group_rounds); $round++) {
         for ($i = 0; $i < count($players); $i++) {
             for ($j = $i + 1; $j < count($players); $j++) {
+                // Skip if both are teams and they share players
+                if (isset($players[$i]['isteam']) && $players[$i]['isteam'] == 1 && 
+                    isset($players[$j]['isteam']) && $players[$j]['isteam'] == 1) {
+                    if (teamsSharePlayers($players[$i], $players[$j])) {
+                        continue; // Skip this pairing
+                    }
+                }
+                
                 $all_group_matches[] = [
                     'player1' => $players[$i]['id'],
                     'player2' => $players[$j]['id']
@@ -662,6 +752,37 @@ function loadMatches() {
             var finalSettings = document.getElementById(prefix + '_final_settings');
             finalSettings.style.display = checkbox.checked ? 'block' : 'none';
         }
+        
+        function toggleTournamentType() {
+            var isSingles = document.getElementById('type_singles').checked;
+            var singlesSection = document.getElementById('singles_selection');
+            var doublesSection = document.getElementById('doubles_selection');
+            var playoffCheckbox = document.getElementById('regular_has_playoffs');
+            var playoffSettings = document.getElementById('regular_playoff_settings');
+            var specialPlayoffCheckbox = document.getElementById('special_has_playoffs');
+            
+            if (isSingles) {
+                singlesSection.style.display = 'block';
+                doublesSection.style.display = 'none';
+                // Playoffs allowed for singles
+                if (playoffCheckbox) playoffCheckbox.disabled = false;
+                if (specialPlayoffCheckbox) specialPlayoffCheckbox.disabled = false;
+            } else {
+                singlesSection.style.display = 'none';
+                doublesSection.style.display = 'block';
+                // Disable and uncheck playoffs for doubles
+                if (playoffCheckbox) {
+                    playoffCheckbox.checked = false;
+                    playoffCheckbox.disabled = true;
+                    playoffSettings.style.display = 'none';
+                }
+                if (specialPlayoffCheckbox) {
+                    specialPlayoffCheckbox.checked = false;
+                    specialPlayoffCheckbox.disabled = true;
+                }
+                updatePlayoffScoringVisibility();
+            }
+        }
     </script>
 </head>
 <body>
@@ -693,12 +814,11 @@ function loadMatches() {
                 <strong>Warning:</strong> No players found! Please add players before setting up the tournament.<br>
                 <a href="players.php"><button type="button">Go to Player Management</button></a>
             </div>
-        <?php elseif (count($players) < 4): ?>
+        <?php elseif (count($individuals) < 2 && count($teams) < 2): ?>
             <div class="warning">
-                <strong>Error:</strong> You need at least 4 players to create a tournament.<br>
-                Currently registered: <?php echo count($players); ?> player(s).<br><br>
-                Tournaments require a minimum of 4 players for the playoff system (semi-finals: 1st vs 4th, 2nd vs 3rd).<br><br>
-                <a href="players.php"><button type="button">Add More Players</button></a>
+                <strong>Error:</strong> You need at least 2 players or 2 teams to create a tournament.<br>
+                Currently registered: <?php echo count($individuals); ?> individual player(s) and <?php echo count($teams); ?> team(s).<br><br>
+                <a href="players.php"><button type="button">Add More Players or Create Teams</button></a>
             </div>
         <?php else: ?>
                         <?php 
@@ -808,14 +928,44 @@ function loadMatches() {
         <?php if (count($players) >= 4): ?>
         <form method="POST">
             <div class="form-section">
+                <h2>Tournament Type</h2>
+                <p>Select tournament type:</p>
+                <label class="inline">
+                    <input type="radio" name="tournament_type" value="singles" id="type_singles" checked onchange="toggleTournamentType()">
+                    Singles (Individual Players)
+                </label><br>
+                <label class="inline">
+                    <input type="radio" name="tournament_type" value="doubles" id="type_doubles" onchange="toggleTournamentType()">
+                    Doubles (Teams)
+                </label>
+            </div>
+
+            <div class="form-section" id="singles_selection">
                 <h2>Select Participating Players</h2>
                 <p>Select which players will participate in this tournament:</p>
-                <?php foreach ($players as $player): ?>
+                <?php foreach ($individuals as $player): ?>
                     <label class="inline">
                         <input type="checkbox" name="selected_players[]" value="<?php echo $player['id']; ?>" checked>
-                        <?php echo getPlayerName($player['id']); ?>
+                        <?php echo htmlspecialchars($player['name']); ?>
                     </label><br>
                 <?php endforeach; ?>
+            </div>
+
+            <div class="form-section" id="doubles_selection" style="display: none;">
+                <h2>Select Participating Teams</h2>
+                <?php if (empty($teams)): ?>
+                    <div class="warning">
+                        <strong>No teams available!</strong> Please create teams in <a href="players.php">Player Management</a> before setting up a doubles tournament.
+                    </div>
+                <?php else: ?>
+                    <p>Select which teams will participate in this tournament:</p>
+                    <?php foreach ($teams as $team): ?>
+                        <label class="inline">
+                            <input type="checkbox" name="selected_teams[]" value="<?php echo $team['id']; ?>" checked>
+                            <?php echo htmlspecialchars($team['name']); ?>
+                        </label><br>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
             
             <div class="form-section">
