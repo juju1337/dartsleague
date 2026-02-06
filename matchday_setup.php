@@ -46,8 +46,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $selected_count = count(loadPlayers());
         }
         
-        if ($selected_count < 4) {
-            $validation_error = "Cannot create tournament with fewer than 4 players. Selected: $selected_count player(s).";
+        // Check playoff setting to determine minimum participants
+        $has_playoffs = isset($_POST['regular_has_playoffs']) && $_POST['regular_has_playoffs'] == '1';
+        $min_participants = $has_playoffs ? 4 : 2;
+        
+        if ($selected_count < $min_participants) {
+            if ($has_playoffs) {
+                $validation_error = "Cannot create tournament with playoffs and fewer than 4 players. Selected: $selected_count player(s). Either select at least 4 players or disable playoffs.";
+            } else {
+                $validation_error = "Cannot create tournament with fewer than 2 players. Selected: $selected_count player(s).";
+            }
         } else {
             generateTournament($_POST);
             $setup_complete = true;
@@ -1110,5 +1118,6 @@ function loadMatches() {
 
 </body>
 </html>
+
 
 
