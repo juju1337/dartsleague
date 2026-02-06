@@ -601,8 +601,25 @@ function loadMatches() {
     <script>
         function togglePlayoffs(prefix) {
             var checkbox = document.getElementById(prefix + '_has_playoffs');
-            var playoffSettings = document.getElementById(prefix + '_playoff_settings');
-            playoffSettings.style.display = checkbox.checked ? 'block' : 'none';
+            var settings = document.getElementById(prefix + '_playoff_settings');
+            
+            if (checkbox.checked) {
+                settings.style.display = 'block';
+            } else {
+                settings.style.display = 'none';
+            }
+        
+            // Also toggle playoff scoring section for regular matchdays
+            if (prefix === 'regular') {
+                var scoringSection = document.getElementById('regular_playoff_scoring');
+                if (scoringSection) {
+                    if (checkbox.checked) {
+                        scoringSection.style.display = 'block';
+                    } else {
+                        scoringSection.style.display = 'none';
+                    }
+                }
+            }
         }
         
         function toggleSpecial() {
@@ -968,30 +985,32 @@ function loadMatches() {
                         <td><input type="number" name="score_group_4" min="0" value="0" required style="width: 60px;"></td>
                     </tr>
                 </table>
-                
+
+                <div id="regular_playoff_scoring">
                 <h3>Final Positions (After Playoffs)</h3>
-                <table>
-                    <tr>
-                        <th>Position</th>
-                        <th>Points</th>
-                    </tr>
-                    <tr>
-                        <td>Winner (1st)</td>
-                        <td><input type="number" name="score_final_1" min="0" value="10" required style="width: 60px;"></td>
-                    </tr>
-                    <tr>
-                        <td>Runner-up (2nd)</td>
-                        <td><input type="number" name="score_final_2" min="0" value="7" required style="width: 60px;"></td>
-                    </tr>
-                    <tr>
-                        <td>3rd Place</td>
-                        <td><input type="number" name="score_final_3" min="0" value="5" required style="width: 60px;"></td>
-                    </tr>
-                    <tr>
-                        <td>4th Place</td>
-                        <td><input type="number" name="score_final_4" min="0" value="3" required style="width: 60px;"></td>
-                    </tr>
-                </table>
+                    <table>
+                        <tr>
+                            <th>Position</th>
+                            <th>Points</th>
+                        </tr>
+                        <tr>
+                            <td>Winner (1st)</td>
+                            <td><input type="number" name="score_final_1" min="0" value="10" required style="width: 60px;"></td>
+                        </tr>
+                        <tr>
+                            <td>Runner-up (2nd)</td>
+                            <td><input type="number" name="score_final_2" min="0" value="7" required style="width: 60px;"></td>
+                        </tr>
+                        <tr>
+                            <td>3rd Place</td>
+                            <td><input type="number" name="score_final_3" min="0" value="5" required style="width: 60px;"></td>
+                        </tr>
+                        <tr>
+                            <td>4th Place</td>
+                            <td><input type="number" name="score_final_4" min="0" value="3" required style="width: 60px;"></td>
+                        </tr>
+                    </table>
+                </div>
                 
                 <h3>Best Statistics Bonuses</h3>
                 <table>
@@ -1091,4 +1110,5 @@ function loadMatches() {
 
 </body>
 </html>
+
 
