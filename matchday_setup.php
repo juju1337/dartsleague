@@ -624,17 +624,29 @@ function loadMatches() {
             } else {
                 settings.style.display = 'none';
             }
+
+            // Update playoff scoring section visibility (checks BOTH regular and special)
+            updatePlayoffScoringVisibility();
+        }
         
-            // Also toggle playoff scoring section for regular matchdays
-            if (prefix === 'regular') {
-                var scoringSection = document.getElementById('regular_playoff_scoring');
-                if (scoringSection) {
-                    if (checkbox.checked) {
-                        scoringSection.style.display = 'block';
-                    } else {
-                        scoringSection.style.display = 'none';
-                    }
-                }
+        function updatePlayoffScoringVisibility() {
+            var regularPlayoffs = document.getElementById('regular_has_playoffs');
+            var specialEnabled = document.getElementById('has_special');
+            var specialPlayoffs = document.getElementById('special_has_playoffs');
+            var scoringSection = document.getElementById('regular_playoff_scoring');
+            
+            if (!scoringSection) return;
+            
+            // Check if ANY matchday type has playoffs enabled
+            var regularHasPlayoffs = regularPlayoffs && regularPlayoffs.checked;
+            var specialHasPlayoffs = specialEnabled && specialEnabled.checked && 
+                                     specialPlayoffs && specialPlayoffs.checked;
+            
+            // Show scoring section if ANY matchday has playoffs
+            if (regularHasPlayoffs || specialHasPlayoffs) {
+                scoringSection.style.display = 'block';
+            } else {
+                scoringSection.style.display = 'none';
             }
         }
         
@@ -642,7 +654,9 @@ function loadMatches() {
             var checkbox = document.getElementById('has_special');
             var specialSettings = document.getElementById('special_settings');
             specialSettings.style.display = checkbox.checked ? 'block' : 'none';
+            updatePlayoffScoringVisibility();
         }
+        
         function toggleFinalFormat(prefix) {
             var checkbox = document.getElementById(prefix + '_different_final');
             var finalSettings = document.getElementById(prefix + '_final_settings');
