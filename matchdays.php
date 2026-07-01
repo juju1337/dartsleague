@@ -1000,10 +1000,11 @@ function calculateStandings($matches, $matchday_config) {
     $standings = array_filter($standings, function($s) {
         return $s['played'] > 0;
     });
+    $standings = array_values($standings);
     
     // Sort based on method
-    usort($standings, function($a, $b) use ($standingsmethod, $matches) {
-        if ($standingsmethod == 'leg_diff') {
+    if ($standingsmethod == 'leg_diff') {
+        usort($standings, function($a, $b) use ($matches) {
             // Pure leg difference sorting
             $diff_a = $a['legs_for'] - $a['legs_against'];
             $diff_b = $b['legs_for'] - $b['legs_against'];
@@ -1015,29 +1016,115 @@ function calculateStandings($matches, $matchday_config) {
             
             // Tiebreaker 2: Total legs won
             return $b['legs_for'] - $a['legs_for'];
-        } else {
-            // Points-based sorting (default)
-            if ($b['points'] != $a['points']) {
-                return $b['points'] - $a['points'];
-            }
-            
-            // Tiebreaker 1: Direct comparison (head-to-head)
-            $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
-            if ($h2h != 0) return $h2h;
-            
-            // Tiebreaker 2: Leg difference
-            $diff_a = $a['legs_for'] - $a['legs_against'];
-            $diff_b = $b['legs_for'] - $b['legs_against'];
-            if ($diff_b != $diff_a) {
-                return $diff_b - $diff_a;
-            }
-            
-            // Tiebreaker 3: Total legs won
-            return $b['legs_for'] - $a['legs_for'];
-        }
-    });
+        });
+    } else {
+        // Points-based sorting (default), with cycle-safe group tiebreaking
+        $standings = sortStandingsByPoints($standings, $matches);
+    }
     
     return $standings;
+}
+
+// Groups entries by points (descending), then resolves each tied group.
+function sortStandingsByPoints($standings, $matches) {
+    usort($standings, function($a, $b) {
+        return $b['points'] - $a['points'];
+    });
+    
+    $point_groups = [];
+    foreach ($standings as $s) {
+        $point_groups[$s['points']][] = $s;
+    }
+    krsort($point_groups);
+    
+    $result = [];
+    foreach ($point_groups as $group) {
+        foreach (resolveTiedGroup($group, $matches) as $s) {
+            $result[] = $s;
+        }
+    }
+    return $result;
+}
+
+// Resolves a group tied on points using a mini-league among just that group.
+// This correctly detects cycles (e.g. A beat B, B beat C, C beat A) instead
+// of producing an arbitrary order from pairwise comparison.
+function resolveTiedGroup($group, $matches) {
+    if (count($group) <= 1) {
+        return $group;
+    }
+    
+    $ids = array_map(function($s) { return $s['id']; }, $group);
+    
+    // Mini-league wins: only count matches between members of this group
+    $mini_wins = [];
+    foreach ($ids as $id) {
+        $mini_wins[$id] = 0;
+    }
+    foreach ($matches as $match) {
+        $p1id = $match['player1id'];
+        $p2id = $match['player2id'];
+        $sets1 = intval($match['sets1']);
+        $sets2 = intval($match['sets2']);
+        if ($sets1 == 0 && $sets2 == 0) continue;
+        if (!in_array($p1id, $ids) || !in_array($p2id, $ids)) continue;
+        
+        if ($sets1 > $sets2) {
+            $mini_wins[$p1id]++;
+        } elseif ($sets2 > $sets1) {
+            $mini_wins[$p2id]++;
+        }
+    }
+    
+    $mini_groups = [];
+    foreach ($group as $s) {
+        $mini_groups[$mini_wins[$s['id']]][] = $s;
+    }
+    krsort($mini_groups);
+    
+    $result = [];
+    foreach ($mini_groups as $mini_group) {
+        foreach (resolveByLegDifference($mini_group, $matches) as $s) {
+            $result[] = $s;
+        }
+    }
+    return $result;
+}
+
+// Fallback for entries still tied after the mini-league: leg difference,
+// then (for exactly 2 remaining) pairwise head-to-head, then total legs won.
+function resolveByLegDifference($group, $matches) {
+    if (count($group) <= 1) {
+        return $group;
+    }
+    
+    $diff_groups = [];
+    foreach ($group as $s) {
+        $diff = $s['legs_for'] - $s['legs_against'];
+        $diff_groups[$diff][] = $s;
+    }
+    krsort($diff_groups);
+    
+    $result = [];
+    foreach ($diff_groups as $diff_group) {
+        if (count($diff_group) == 2) {
+            // Exactly two left: head-to-head is unambiguous now
+            usort($diff_group, function($a, $b) use ($matches) {
+                $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
+                if ($h2h != 0) return $h2h;
+                return $b['legs_for'] - $a['legs_for'];
+            });
+        } elseif (count($diff_group) > 2) {
+            // 3+ still tied: total legs won is the final fallback
+            usort($diff_group, function($a, $b) {
+                return $b['legs_for'] - $a['legs_for'];
+            });
+        }
+        foreach ($diff_group as $s) {
+            $result[] = $s;
+        }
+    }
+    return $result;
 }
 
 ?>
