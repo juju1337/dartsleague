@@ -1012,7 +1012,7 @@ function calculateStandings($matches, $matchday_config) {
             
             // Tiebreaker 1: Direct comparison (head-to-head)
             $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
-            if ($h2h != 0) return $h2h;
+            if ($h2h != 0) return -$h2h;
             
             // Tiebreaker 2: Total legs won
             return $b['legs_for'] - $a['legs_for'];
@@ -1111,7 +1111,7 @@ function resolveByLegDifference($group, $matches) {
             // Exactly two left: head-to-head is unambiguous now
             usort($diff_group, function($a, $b) use ($matches) {
                 $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
-                if ($h2h != 0) return $h2h;
+                if ($h2h != 0) return -$h2h;
                 return $b['legs_for'] - $a['legs_for'];
             });
         } elseif (count($diff_group) > 2) {
