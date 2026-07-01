@@ -1021,16 +1021,16 @@ function calculateStandings($matches, $matchday_config) {
                 return $b['points'] - $a['points'];
             }
             
-            // Tiebreaker 1: Leg difference
+            // Tiebreaker 1: Direct comparison (head-to-head)
+            $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
+            if ($h2h != 0) return $h2h;
+            
+            // Tiebreaker 2: Leg difference
             $diff_a = $a['legs_for'] - $a['legs_against'];
             $diff_b = $b['legs_for'] - $b['legs_against'];
             if ($diff_b != $diff_a) {
                 return $diff_b - $diff_a;
             }
-            
-            // Tiebreaker 2: Direct comparison (head-to-head)
-            $h2h = getHeadToHeadResult($a['id'], $b['id'], $matches);
-            if ($h2h != 0) return $h2h;
             
             // Tiebreaker 3: Total legs won
             return $b['legs_for'] - $a['legs_for'];
