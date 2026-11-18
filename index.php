@@ -748,25 +748,25 @@ function getPlayerName($player_id) {
                     $overall_stats[$pid]['points'] += $scoring_scheme['most_100s']['1'];
                 }
             }
-            
-             // Add extra points
-            $extrapoints_file = 'tables/extrapoints.csv';
-            if (file_exists($extrapoints_file) && ($fp = fopen($extrapoints_file, 'r')) !== false) {
-                $header = fgetcsv($fp);
-                while (($row = fgetcsv($fp)) !== false) {
-                    $player_id = $row[0];
-                    $matchday_id = $row[1];
-                    $extra_pts = intval($row[2]);
-                    
-                    // Only add if this matchday is complete
-                    if (in_array($matchday_id, $completed_matchdays)) {
-                        if (isset($overall_stats[$player_id])) {
-                            $overall_stats[$player_id]['points'] += $extra_pts;
-                        }
+        }
+        
+        // Add extra points
+        $extrapoints_file = 'tables/extrapoints.csv';
+        if (file_exists($extrapoints_file) && ($fp = fopen($extrapoints_file, 'r')) !== false) {
+            $header = fgetcsv($fp);
+            while (($row = fgetcsv($fp)) !== false) {
+                $player_id = $row[0];
+                $matchday_id = $row[1];
+                $extra_pts = intval($row[2]);
+                
+                // Only add if this matchday is complete
+                if (in_array($matchday_id, $completed_matchdays)) {
+                    if (isset($overall_stats[$player_id])) {
+                        $overall_stats[$player_id]['points'] += $extra_pts;
                     }
                 }
-                fclose($fp);
             }
+            fclose($fp);
         }
         
         // Sort by points (currently 0 for all, will be updated later)
